@@ -1,9 +1,7 @@
-import { ContactForm } from "@/components/contact-form"
+"use client"
 
-export default function Home() {
-  return (
-    <main className="container mx-auto py-12 px-4">
-      <ContactForm />
-    </main>
-  )
+import Component from "../page"
+
+export default function SyntheticV0PageForDeployment() {
+  return <Component />
 }
