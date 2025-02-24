@@ -7,6 +7,10 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(process.env.NODE_ENV === 'production' ? {
+    output: 'export',
+    basePath: '/cit-clinical',
+  } : {}),
   images: {
     unoptimized: true,
   },
