@@ -109,10 +109,12 @@ jobs:
             },
             trailingSlash: true,
             experimental: {
-              webpackBuildWorker: true, 
-              parallelServerBuildTraces: true,
-              parallelServerCompiles: true,
-            }
+              webpackBuildWorker: true,
+            },
+            distDir: '.next',
+            poweredByHeader: false,
+            reactStrictMode: false,
+            swcMinify: true,
           }
           
           module.exports = nextConfig
@@ -149,17 +151,14 @@ jobs:
           # Clean existing build artifacts
           rm -rf .next out
           
-          # Create a custom development-like CSS processor for Tailwind
-          cat > tailwind.dev.config.js << 'EOL'
+          # Create a lighter tailwind config specifically for production builds
+          cat > tailwind.prod.config.js << 'EOL'
           /** @type {import('tailwindcss').Config} */
           module.exports = {
             content: [
               './pages/**/*.{js,ts,jsx,tsx,mdx}',
               './components/**/*.{js,ts,jsx,tsx,mdx}',
               './app/**/*.{js,ts,jsx,tsx,mdx}',
-              './src/**/*.{js,ts,jsx,tsx,mdx}',
-              './page.tsx',
-              './lib/**/*.{js,ts,jsx,tsx}',
             ],
             theme: {
               extend: {
@@ -197,7 +196,6 @@ jobs:
                   border: "hsl(var(--border))",
                   input: "hsl(var(--input))",
                   ring: "hsl(var(--ring))",
-                  // Chart colors
                   chart: {
                     1: "hsl(var(--chart-1))",
                     2: "hsl(var(--chart-2))",
@@ -205,7 +203,6 @@ jobs:
                     4: "hsl(var(--chart-4))",
                     5: "hsl(var(--chart-5))",
                   },
-                  // Sidebar colors
                   sidebar: {
                     background: "hsl(var(--sidebar-background))",
                     foreground: "hsl(var(--sidebar-foreground))",
@@ -238,10 +235,15 @@ jobs:
                 }
               }
             },
-            // Enable all variants and don't purge unused classes in this config
-            safelist: [{ pattern: /.*/ }],
+            safelist: [
+              'bg-background', 'text-foreground',
+              'bg-primary', 'text-primary', 'text-primary-foreground',
+              'bg-secondary', 'text-secondary', 'text-secondary-foreground',
+              'bg-accent', 'text-accent', 'text-accent-foreground',
+              'bg-muted', 'text-muted', 'text-muted-foreground',
+              'border-border', 'ring-ring'
+            ],
             plugins: [require("tailwindcss-animate")],
-            // Add explicit exclude patterns to prevent scanning node_modules
             exclude: [
               '**/node_modules/**',
               '**/.git/**',
@@ -251,31 +253,47 @@ jobs:
           }
           EOL
           
-          # Create a more permissive postcss config
+          # Create a simplified postcss config optimized for build speed
           cat > postcss.config.js << 'EOL'
           module.exports = {
             plugins: {
-              'tailwindcss/nesting': {},
               tailwindcss: {
-                config: './tailwind.dev.config.js',
+                config: './tailwind.prod.config.js',
               },
               autoprefixer: {},
             },
           }
           EOL
           cat postcss.config.js
-      
+          
+          # Create .npmrc to disable some features that might slow down the build
+          cat > .npmrc << 'EOL'
+          fund=false
+          audit=false
+          save-exact=true
+          EOL
+          
+          # Create an optimization file for Next.js
+          mkdir -p .next/cache
+          touch .next/cache/next-optimize-css
+
       - name: Build with Next.js
         run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
-          # Build with SKIP_UNNECESSARY_SCANS to speed up Tailwind
-          SKIP_UNNECESSARY_SCANS=true npm run build
+          
+          # Show progress during build for debugging
+          echo "Starting Next.js build process..."
+          
+          # Use a lightweight build approach
+          NEXT_TELEMETRY_DISABLED=1 SKIP_UNNECESSARY_SCANS=true npm run build -- --no-lint
+          
+          echo "Build completed!"
           
           # Check if CSS files were generated
           echo "CSS files in output:"
           find out -type f -name "*.css" || echo "No CSS files found in output"
           
-          if [ -f out/_next/static/css/*.css ]; then
+          if ls out/_next/static/css/*.css 1> /dev/null 2>&1; then
             echo "CSS content sample (first 30 lines):"
             head -n 30 out/_next/static/css/*.css
             
@@ -283,9 +301,15 @@ jobs:
             ls -la out/_next/static/css/*.css
             
             # Check if CSS file is empty or very small
-            if [ $(stat -c%s out/_next/static/css/*.css) -lt 1000 ]; then
-              echo "Warning: CSS file is suspiciously small, this might be why styling is missing"
-            fi
+            for cssfile in out/_next/static/css/*.css; do
+              filesize=$(stat -c%s "$cssfile")
+              echo "CSS file $cssfile size: $filesize bytes"
+              if [ "$filesize" -lt 1000 ]; then
+                echo "Warning: CSS file $cssfile is suspiciously small!"
+              fi
+            done
+          else
+            echo "No CSS files found in the expected location"
           fi
       
       - name: Create script to fix path issues
