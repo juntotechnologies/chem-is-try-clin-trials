@@ -43,47 +43,50 @@ jobs:
           static_site_generator: next
       - name: Install dependencies
         run: |
-          npm install --force
-          npm install -g tailwindcss postcss autoprefixer
-          npm link tailwindcss postcss autoprefixer
-          npx tailwindcss --version # Check if tailwindcss is properly installed
-      - name: Prepare build environment
+          npm ci
+          npm ls tailwindcss
+      - name: Setup Tailwind CSS
         run: |
-          # Ensure all necessary Tailwind files are present
-          echo "Creating Tailwind config files if needed"
+          # Create a simple tailwind.config.js
+          echo "/** @type {import('tailwindcss').Config} */" > tailwind.config.js
+          echo "module.exports = {" >> tailwind.config.js
+          echo "  content: [" >> tailwind.config.js
+          echo "    './pages/**/*.{js,ts,jsx,tsx,mdx}'," >> tailwind.config.js
+          echo "    './components/**/*.{js,ts,jsx,tsx,mdx}'," >> tailwind.config.js
+          echo "    './app/**/*.{js,ts,jsx,tsx,mdx}'," >> tailwind.config.js
+          echo "    './page.tsx'" >> tailwind.config.js
+          echo "  ]," >> tailwind.config.js
+          echo "  theme: { extend: {} }," >> tailwind.config.js
+          echo "  plugins: []" >> tailwind.config.js
+          echo "}" >> tailwind.config.js
           
-          # Create a minimal globals.css file if it doesn't exist
-          if [ ! -f app/globals.css ]; then
-            mkdir -p app
-            echo "@tailwind base;" > app/globals.css
-            echo "@tailwind components;" >> app/globals.css
-            echo "@tailwind utilities;" >> app/globals.css
-          fi
+          # Create a simple postcss.config.js for Tailwind CSS v3
+          echo "module.exports = {" > postcss.config.js
+          echo "  plugins: {" >> postcss.config.js
+          echo "    tailwindcss: {}," >> postcss.config.js
+          echo "    autoprefixer: {}" >> postcss.config.js
+          echo "  }" >> postcss.config.js
+          echo "}" >> postcss.config.js
           
-          # Debug information
-          echo "Directory structure:"
-          ls -la
-          echo "Node modules:"
-          ls -la node_modules || echo "No node_modules folder found"
-          echo "TailwindCSS installation:"
-          npm list tailwindcss || echo "TailwindCSS not found in local dependencies"
-          npm list -g tailwindcss || echo "TailwindCSS not found in global dependencies"
+          # Install Tailwind CSS v3 if needed
+          npm install --save-dev tailwindcss@3.4.1 postcss@8.4.35 autoprefixer@10.4.18
           
-          # Force tailwindcss path to be available
-          export NODE_PATH=$(npm root -g)
-          echo "NODE_PATH=$NODE_PATH"
+          # Create .browserslistrc file
+          echo "last 2 versions" > .browserslistrc
+          echo "not dead" >> .browserslistrc
+          echo "> 0.5%" >> .browserslistrc
+          echo "Firefox ESR" >> .browserslistrc
           
-          # Copy Tailwind directly to local node_modules if it's not there
-          if [ ! -d "node_modules/tailwindcss" ]; then
-            echo "Copying global tailwindcss to local node_modules"
-            mkdir -p node_modules/tailwindcss
-            cp -r $(npm root -g)/tailwindcss/* node_modules/tailwindcss/
-          fi
+      - name: Debug environment
+        run: |
+          npm list tailwindcss
+          ls -la node_modules
+          cat package.json
+          cat postcss.config.js
+          cat tailwind.config.js
+          
       - name: Build with Next.js
-        run: |
-          export NODE_PATH=$(npm root -g):$NODE_PATH
-          echo "NODE_PATH=$NODE_PATH"
-          NODE_OPTIONS=--enable-source-maps NEXT_TELEMETRY_DISABLED=1 npm run build
+        run: npm run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
