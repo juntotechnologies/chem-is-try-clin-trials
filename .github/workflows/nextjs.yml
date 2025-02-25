@@ -41,10 +41,22 @@ jobs:
       
       - name: Create .env file
         run: |
-          echo "PUBLIC_URL=/cit-clinical" > .env
+          echo "PUBLIC_URL=https://juntotechnologies.github.io/cit-clinical" > .env
+          echo "REACT_APP_BASE_PATH=/cit-clinical" >> .env
 
       - name: Build React app
         run: npm run build
+      
+      - name: Debug build output
+        run: |
+          echo "--- Build output files ---"
+          ls -la build
+          echo "--- JavaScript files ---"
+          find build -name "*.js" | sort
+          echo "--- CSS files ---"
+          find build -name "*.css" | sort
+          echo "--- Index.html content ---"
+          cat build/index.html
       
       - name: Copy public files
         run: |
