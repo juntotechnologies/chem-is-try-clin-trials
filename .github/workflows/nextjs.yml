@@ -43,36 +43,113 @@ jobs:
         with:
           static_site_generator: next
       
+      - name: List existing config files
+        run: |
+          echo "Checking for existing configuration files..."
+          if [ -f tailwind.config.js ]; then
+            echo "Existing tailwind.config.js:"
+            cat tailwind.config.js
+          else
+            echo "No existing tailwind.config.js found"
+          fi
+          
+          if [ -f postcss.config.js ]; then
+            echo "Existing postcss.config.js:"
+            cat postcss.config.js
+          else
+            echo "No existing postcss.config.js found"
+          fi
+          
+          if [ -f next.config.js ]; then
+            echo "Existing next.config.js:"
+            cat next.config.js
+          else
+            echo "No existing next.config.js found"
+          fi
+      
       - name: Install dependencies with exact versions
         run: |
           npm ci
-          # Install tailwindcss-animate explicitly if needed
+          # Install tailwindcss-animate explicitly
           npm install --save-dev tailwindcss-animate@1.0.7
+          # Output installed package versions for debugging
+          echo "Installed Tailwind CSS version:"
           npm list tailwindcss
+          echo "Installed Tailwind CSS Animate version:"
           npm list tailwindcss-animate
+          echo "Installed PostCSS version:"
+          npm list postcss
+          echo "Installed Autoprefixer version:"
+          npm list autoprefixer
       
-      - name: Ensure PostCSS configuration is correct
+      - name: Update Next.js config for GitHub Pages
         run: |
-          cat > postcss.config.js << 'EOL'
-          module.exports = {
-            plugins: {
-              tailwindcss: {},
-              autoprefixer: {},
+          cat > next.config.js << 'EOL'
+          /** @type {import('next').NextConfig} */
+          const nextConfig = {
+            output: 'export',
+            basePath: process.env.NODE_ENV === 'production' ? '/cit-clinical' : '',
+            assetPrefix: process.env.NODE_ENV === 'production' ? '/cit-clinical/' : '',
+            images: {
+              unoptimized: true,
             },
+            typescript: {
+              ignoreBuildErrors: true,
+            },
+            eslint: {
+              ignoreDuringBuilds: true,
+            },
+            trailingSlash: true,
+            experimental: {
+              webpackBuildWorker: true, 
+              parallelServerBuildTraces: true,
+              parallelServerCompiles: true,
+            }
           }
+          
+          module.exports = nextConfig
           EOL
-          cat postcss.config.js
+          cat next.config.js
       
-      - name: Ensure Tailwind config is correct
+      - name: Set environment variables
         run: |
-          cat > tailwind.config.js << 'EOL'
+          echo "NODE_ENV=production" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_BASE_PATH=/cit-clinical" >> $GITHUB_ENV
+          echo "LOCAL_DEV_EMULATION=true" >> $GITHUB_ENV
+          # This helps emulate some aspects of dev mode while still building for production
+      
+      - name: Debug environment
+        run: |
+          echo "Current directory structure:"
+          find . -type f -name "*.css" | sort
+          echo "Component and page files:"
+          find . -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "./node_modules/*" | sort
+          echo "Package.json:"
+          cat package.json
+      
+      - name: Check globals.css content
+        run: |
+          echo "Current globals.css content:"
+          cat app/globals.css || echo "No globals.css found in app directory"
+      
+      - name: Create optimized build environment
+        run: |
+          # Copy the styles into a temporary location to ensure they're not lost
+          mkdir -p .styles-backup
+          cp -r app/globals.css .styles-backup/ || echo "No globals.css to backup"
+          
+          # Clean existing build artifacts
+          rm -rf .next out
+          
+          # Create a custom development-like CSS processor for Tailwind
+          cat > tailwind.dev.config.js << 'EOL'
           /** @type {import('tailwindcss').Config} */
           module.exports = {
             content: [
               './pages/**/*.{js,ts,jsx,tsx,mdx}',
               './components/**/*.{js,ts,jsx,tsx,mdx}',
               './app/**/*.{js,ts,jsx,tsx,mdx}',
-              './page.tsx',
+              './**/*.{js,ts,jsx,tsx,mdx}',
             ],
             theme: {
               extend: {
@@ -151,69 +228,46 @@ jobs:
                 }
               }
             },
+            // Enable all variants and don't purge unused classes in this config
+            safelist: [{ pattern: /.*/ }],
             plugins: [require("tailwindcss-animate")],
           }
           EOL
-          cat tailwind.config.js
-      
-      - name: Check app/globals.css content
-        run: |
-          echo "Current globals.css content:"
-          cat app/globals.css || echo "No globals.css found"
-      
-      - name: Update Next.js config for GitHub Pages
-        run: |
-          cat > next.config.js << 'EOL'
-          /** @type {import('next').NextConfig} */
-          const nextConfig = {
-            output: 'export',
-            basePath: process.env.NODE_ENV === 'production' ? '/cit-clinical' : '',
-            assetPrefix: process.env.NODE_ENV === 'production' ? '/cit-clinical/' : '',
-            images: {
-              unoptimized: true,
-            },
-            typescript: {
-              ignoreBuildErrors: true,
-            },
-            eslint: {
-              ignoreDuringBuilds: true,
-            },
-            trailingSlash: true,
-            experimental: {
-              webpackBuildWorker: true, 
-              parallelServerBuildTraces: true,
-              parallelServerCompiles: true,
-            }
-          }
           
-          module.exports = nextConfig
+          # Create a more permissive postcss config
+          cat > postcss.config.js << 'EOL'
+          module.exports = {
+            plugins: {
+              'tailwindcss/nesting': {},
+              tailwindcss: {
+                config: './tailwind.dev.config.js',
+              },
+              autoprefixer: {},
+            },
+          }
           EOL
-          cat next.config.js
-      
-      - name: Debug environment
-        run: |
-          echo "Current directory structure:"
-          find . -type f -name "*.css" | sort
-          echo "Component and page files:"
-          find . -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "./node_modules/*" | sort
-          echo "Package.json:"
-          cat package.json
-      
-      - name: Set NODE_ENV and other vars
-        run: |
-          echo "NODE_ENV=production" >> $GITHUB_ENV
-          echo "NEXT_PUBLIC_BASE_PATH=/cit-clinical" >> $GITHUB_ENV
-      
-      - name: Clean existing build artifacts
-        run: |
-          rm -rf .next out
+          cat postcss.config.js
       
       - name: Build with Next.js
         run: |
+          export NODE_OPTIONS="--max_old_space_size=4096"
           npm run build
-          # If the build produces empty CSS, let's try a dev build for comparison
-          if [ ! -s out/_next/static/css/*.css ] && [ -f out/_next/static/css/*.css ]; then
-            echo "Warning: CSS file is empty, this might be why styling is missing"
+          
+          # Check if CSS files were generated
+          echo "CSS files in output:"
+          find out -type f -name "*.css" || echo "No CSS files found in output"
+          
+          if [ -f out/_next/static/css/*.css ]; then
+            echo "CSS content sample (first 30 lines):"
+            head -n 30 out/_next/static/css/*.css
+            
+            echo "CSS file size:"
+            ls -la out/_next/static/css/*.css
+            
+            # Check if CSS file is empty or very small
+            if [ $(stat -c%s out/_next/static/css/*.css) -lt 1000 ]; then
+              echo "Warning: CSS file is suspiciously small, this might be why styling is missing"
+            fi
           fi
       
       - name: Create script to fix path issues
@@ -227,10 +281,24 @@ jobs:
             // Fix paths in HTML files
             const fixedContent = content
               .replace(/href="\/_next\//g, 'href="/cit-clinical/_next/')
-              .replace(/src="\/_next\//g, 'src="/cit-clinical/_next/');
+              .replace(/src="\/_next\//g, 'src="/cit-clinical/_next/')
+              // Also fix any absolute URLs that might be in the CSS
+              .replace(/"\/cit-clinical\/cit-clinical\//g, '"/cit-clinical/');
             
             fs.writeFileSync(filePath, fixedContent);
             console.log(`Fixed paths in ${filePath}`);
+          }
+          
+          function processCSSFile(filePath) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            // Fix paths in CSS files
+            const fixedContent = content
+              .replace(/url\(\/_next\//g, 'url(/cit-clinical/_next/')
+              // Also fix any absolute URLs that might be in the CSS
+              .replace(/url\(\/cit-clinical\/cit-clinical\//g, 'url(/cit-clinical/');
+            
+            fs.writeFileSync(filePath, fixedContent);
+            console.log(`Fixed paths in CSS ${filePath}`);
           }
           
           function walkDir(dir) {
@@ -244,6 +312,8 @@ jobs:
                 walkDir(filePath);
               } else if (file.endsWith('.html')) {
                 processHtmlFile(filePath);
+              } else if (file.endsWith('.css')) {
+                processCSSFile(filePath);
               }
             }
           }
@@ -254,18 +324,66 @@ jobs:
           
           cd out && node _fix-paths.js
       
+      - name: Create dev tools script
+        run: |
+          # Create a script that adds useful development tools to the page
+          cat > out/_dev-tools.js << 'EOL'
+          // This script adds a small debug panel to the page
+          document.addEventListener('DOMContentLoaded', function() {
+            const debugPanel = document.createElement('div');
+            debugPanel.style.position = 'fixed';
+            debugPanel.style.bottom = '10px';
+            debugPanel.style.right = '10px';
+            debugPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            debugPanel.style.color = 'white';
+            debugPanel.style.padding = '10px';
+            debugPanel.style.borderRadius = '5px';
+            debugPanel.style.zIndex = '9999';
+            debugPanel.style.fontSize = '12px';
+            debugPanel.style.maxWidth = '300px';
+            debugPanel.style.maxHeight = '200px';
+            debugPanel.style.overflow = 'auto';
+            
+            debugPanel.innerHTML = `
+              <h3 style="margin-top: 0; margin-bottom: 5px;">GitHub Pages Build</h3>
+              <p>Base Path: /cit-clinical</p>
+              <p>Build Time: ${new Date().toISOString()}</p>
+              <button id="debug-toggle-styles" style="background: #333; border: 1px solid #666; color: white; padding: 5px; cursor: pointer;">Toggle Styles</button>
+            `;
+            
+            document.body.appendChild(debugPanel);
+            
+            // Add a toggle for styles
+            document.getElementById('debug-toggle-styles').addEventListener('click', function() {
+              const stylesheets = document.querySelectorAll('link[rel="stylesheet"]');
+              stylesheets.forEach(sheet => {
+                sheet.disabled = !sheet.disabled;
+              });
+            });
+          });
+          EOL
+          
+          # Inject this script into the HTML files
+          for htmlFile in $(find out -name "*.html"); do
+            # Add the script before the closing body tag
+            sed -i 's/<\/body>/<script src="\/_dev-tools.js"><\/script><\/body>/g' "$htmlFile"
+          done
+          
+          # Fix the path for GitHub Pages
+          for htmlFile in $(find out -name "*.html"); do
+            sed -i 's/\/_dev-tools.js/\/cit-clinical\/_dev-tools.js/g' "$htmlFile"
+          done
+      
       - name: Debug build output
         run: |
           echo "Output directory contents:"
           ls -la out/ || echo "No out directory found"
-          echo "CSS files in output:"
-          find out -type f -name "*.css" || echo "No CSS files found in output"
-          if [ -f out/_next/static/css/*.css ]; then
-            echo "CSS content sample (first 20 lines):"
-            head -n 20 out/_next/static/css/*.css
-          fi
-          echo "First 50 lines of index.html:"
-          head -n 50 out/index.html || echo "No index.html found"
+          
+          echo "HTML structure in index.html:"
+          grep -A 10 "<body" out/index.html || echo "No body tag found in index.html"
+          
+          echo "CSS link tags in index.html:"
+          grep -o '<link [^>]*rel="stylesheet"[^>]*>' out/index.html || echo "No CSS link tags found in index.html"
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
