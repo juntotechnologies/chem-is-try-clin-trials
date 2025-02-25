@@ -36,6 +36,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: 'npm'
       
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -44,63 +45,17 @@ jobs:
       
       - name: Install dependencies
         run: |
-          npm install
-          npm install --save-dev tailwindcss@3.4.1 postcss@8.4.35 autoprefixer@10.4.18
+          npm ci
           npm list tailwindcss
       
-      - name: Update PostCSS config
+      - name: Update Next.js config for GitHub Pages
         run: |
-          echo 'module.exports = {
-            plugins: {
-              "tailwindcss": {},
-              "autoprefixer": {},
-            },
-          };' > postcss.config.js
-          cat postcss.config.js
-      
-      - name: Update Tailwind config
-        run: |
-          echo 'module.exports = {
-            content: [
-              "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-              "./components/**/*.{js,ts,jsx,tsx,mdx}",
-              "./app/**/*.{js,ts,jsx,tsx,mdx}",
-              "./page.tsx",
-            ],
-            theme: {
-              extend: {
-                colors: {
-                  background: "hsl(var(--background))",
-                  foreground: "hsl(var(--foreground))",
-                  primary: {
-                    DEFAULT: "hsl(var(--primary))",
-                    foreground: "hsl(var(--primary-foreground))"
-                  },
-                  secondary: {
-                    DEFAULT: "hsl(var(--secondary))",
-                    foreground: "hsl(var(--secondary-foreground))"
-                  },
-                  border: "hsl(var(--border))",
-                  input: "hsl(var(--input))",
-                  ring: "hsl(var(--ring))",
-                },
-                borderRadius: {
-                  lg: "var(--radius)",
-                  md: "calc(var(--radius) - 2px)",
-                  sm: "calc(var(--radius) - 4px)"
-                },
-              },
-            },
-            plugins: [],
-          }' > tailwind.config.js
-          cat tailwind.config.js
-      
-      - name: Create Next.js config file
-        run: |
-          echo 'const nextConfig = {
-            output: "export",
-            basePath: process.env.NODE_ENV === "production" ? "/cit-clinical" : "",
-            assetPrefix: process.env.NODE_ENV === "production" ? "/cit-clinical/" : "",
+          cat > next.config.js << 'EOL'
+          /** @type {import('next').NextConfig} */
+          const nextConfig = {
+            output: 'export',
+            basePath: process.env.NODE_ENV === 'production' ? '/cit-clinical' : '',
+            assetPrefix: process.env.NODE_ENV === 'production' ? '/cit-clinical/' : '',
             images: {
               unoptimized: true,
             },
@@ -113,196 +68,15 @@ jobs:
             trailingSlash: true,
           }
           
-          module.exports = nextConfig' > next.config.js
+          module.exports = nextConfig
+          EOL
           cat next.config.js
       
-      - name: Create app files
-        run: |
-          mkdir -p app
-          mkdir -p components/ui
-          
-          # Create a better globals.css with CSS variables
-          echo '@tailwind base;
-          @tailwind components;
-          @tailwind utilities;
-
-          @layer base {
-            :root {
-              --background: 0 0% 100%;
-              --foreground: 0 0% 3.9%;
-              --primary: 0 0% 9%;
-              --primary-foreground: 0 0% 98%;
-              --secondary: 0 0% 96.1%;
-              --secondary-foreground: 0 0% 9%;
-              --border: 0 0% 89.8%;
-              --input: 0 0% 89.8%;
-              --ring: 0 0% 3.9%;
-              --radius: 0.5rem;
-            }
-            .dark {
-              --background: 0 0% 3.9%;
-              --foreground: 0 0% 98%;
-              --primary: 0 0% 98%;
-              --primary-foreground: 0 0% 9%;
-              --secondary: 0 0% 14.9%;
-              --secondary-foreground: 0 0% 98%;
-              --border: 0 0% 14.9%;
-              --input: 0 0% 14.9%;
-              --ring: 0 0% 83.1%;
-            }
-          }
-          
-          @layer base {
-            * {
-              @apply border-border;
-            }
-            body {
-              @apply bg-background text-foreground;
-            }
-          }' > app/globals.css
-          
-          # Create utils.ts for classname merging
-          mkdir -p lib
-          echo 'import { clsx, type ClassValue } from "clsx"
-          import { twMerge } from "tailwind-merge"
-          
-          export function cn(...inputs: ClassValue[]) {
-            return twMerge(clsx(inputs))
-          }' > lib/utils.ts
-          
-          # Create a button component
-          echo 'import * as React from "react"
-          import { cn } from "@/lib/utils"
-          
-          interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-            variant?: "default" | "outline" | "secondary"
-            size?: "default" | "sm" | "lg"
-          }
-          
-          const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-            ({ className, variant = "default", size = "default", ...props }, ref) => {
-              return (
-                <button
-                  className={cn(
-                    "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
-                    variant === "default" && "bg-primary text-primary-foreground hover:bg-primary/90",
-                    variant === "outline" && "border border-input bg-background hover:bg-secondary hover:text-secondary-foreground",
-                    variant === "secondary" && "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                    size === "default" && "h-10 px-4 py-2",
-                    size === "sm" && "h-9 px-3",
-                    size === "lg" && "h-11 px-8",
-                    className
-                  )}
-                  ref={ref}
-                  {...props}
-                />
-              )
-            }
-          )
-          Button.displayName = "Button"
-          
-          export { Button }' > components/ui/button.tsx
-          
-          # Create a simplified layout.tsx
-          echo 'import "@/app/globals.css"
-
-          export const metadata = {
-            title: "Clinical Intervention Theories",
-            description: "A site about clinical intervention theories",
-          }
-          
-          export default function RootLayout({
-            children,
-          }: {
-            children: React.ReactNode
-          }) {
-            return (
-              <html lang="en">
-                <body>{children}</body>
-              </html>
-            )
-          }' > app/layout.tsx
-          
-          # Create a page.tsx with components imported
-          echo 'import { Button } from "@/components/ui/button"
-          
-          export default function Home() {
-            return (
-              <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
-                  <div className="md:flex">
-                    <div className="p-8">
-                      <div className="uppercase tracking-wide text-sm text-primary font-semibold">Clinical Intervention Theories</div>
-                      <h1 className="mt-1 text-xl font-medium text-foreground">Welcome to our site</h1>
-                      <p className="mt-2 text-secondary-foreground">This is an enhanced version of our site with proper UI components.</p>
-                      
-                      <div className="mt-6 space-y-4">
-                        <Button>Default Button</Button>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">Outline</Button>
-                          <Button variant="secondary" size="sm">Secondary</Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          }' > app/page.tsx
+      - name: Set NODE_ENV
+        run: echo "NODE_ENV=production" >> $GITHUB_ENV
       
-      - name: Debug Environment
-        run: |
-          echo "Generated files:"
-          find . -not -path "./node_modules/*" -not -path "./.git/*" -type f | grep -E '\.tsx$|\.ts$|\.css$|\.js$' | sort
-          echo "Content of app/page.tsx:"
-          cat app/page.tsx
-          echo "Tailwind Config:"
-          cat tailwind.config.js
-      
-      - name: Set Next.js environment
-        run: |
-          echo "NODE_ENV=production" >> $GITHUB_ENV
-      
-      - name: Try building with Next.js
+      - name: Build with Next.js
         run: npm run build
-      
-      - name: Create fallback page if build failed
-        if: failure()
-        run: |
-          mkdir -p out
-          echo '<!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Clinical Intervention Theories</title>
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                line-height: 1.6;
-                margin: 0;
-                padding: 20px;
-                color: #333;
-                max-width: 800px;
-                margin: 0 auto;
-              }
-              h1 {
-                color: #2c3e50;
-              }
-              pre {
-                background: #f4f4f4;
-                padding: 15px;
-                border-radius: 5px;
-                overflow-x: auto;
-              }
-            </style>
-          </head>
-          <body>
-            <h1>Clinical Intervention Theories</h1>
-            <p>Build attempt failed. We are troubleshooting the issue.</p>
-            <p>See GitHub Actions logs for detailed error information.</p>
-          </body>
-          </html>' > out/index.html
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
