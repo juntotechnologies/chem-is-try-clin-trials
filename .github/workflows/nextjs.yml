@@ -33,21 +33,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: 'npm'
+      
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           static_site_generator: next
-      - name: Install dependencies
+      
+      - name: Clean install
         run: |
+          rm -rf node_modules package-lock.json
           npm install
-          npm ls tailwindcss
-      - name: Setup Tailwind CSS
+      
+      - name: Install Tailwind CSS
         run: |
-          # Ensure we have the correct Tailwind CSS version
           npm install --save-dev tailwindcss@3.4.1 postcss@8.4.35 autoprefixer@10.4.18
           
           # Create .browserslistrc file
@@ -55,17 +59,21 @@ jobs:
           echo "not dead" >> .browserslistrc
           echo "> 0.5%" >> .browserslistrc
           echo "Firefox ESR" >> .browserslistrc
-          
+      
       - name: Debug environment
         run: |
-          npm list tailwindcss
-          ls -la node_modules
-          cat package.json
+          echo "Installed packages:"
+          npm list --depth=0
+          echo "Files in project:"
+          ls -la
+          echo "PostCSS config:"
           cat postcss.config.js
+          echo "Tailwind config:"
           cat tailwind.config.js
-          
+      
       - name: Build with Next.js
         run: npm run build
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
