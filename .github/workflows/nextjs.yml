@@ -43,10 +43,13 @@ jobs:
         with:
           static_site_generator: next
       
-      - name: Install dependencies
+      - name: Install dependencies with exact versions
         run: |
           npm ci
+          # Install tailwindcss-animate explicitly if needed
+          npm install --save-dev tailwindcss-animate@1.0.7
           npm list tailwindcss
+          npm list tailwindcss-animate
       
       - name: Ensure PostCSS configuration is correct
         run: |
@@ -106,7 +109,26 @@ jobs:
                   },
                   border: "hsl(var(--border))",
                   input: "hsl(var(--input))",
-                  ring: "hsl(var(--ring))"
+                  ring: "hsl(var(--ring))",
+                  // Chart colors
+                  chart: {
+                    1: "hsl(var(--chart-1))",
+                    2: "hsl(var(--chart-2))",
+                    3: "hsl(var(--chart-3))",
+                    4: "hsl(var(--chart-4))",
+                    5: "hsl(var(--chart-5))",
+                  },
+                  // Sidebar colors
+                  sidebar: {
+                    background: "hsl(var(--sidebar-background))",
+                    foreground: "hsl(var(--sidebar-foreground))",
+                    primary: "hsl(var(--sidebar-primary))",
+                    "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+                    accent: "hsl(var(--sidebar-accent))",
+                    "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+                    border: "hsl(var(--sidebar-border))",
+                    ring: "hsl(var(--sidebar-ring))",
+                  },
                 },
                 borderRadius: {
                   lg: "var(--radius)",
@@ -129,10 +151,15 @@ jobs:
                 }
               }
             },
-            plugins: [],
+            plugins: [require("tailwindcss-animate")],
           }
           EOL
           cat tailwind.config.js
+      
+      - name: Check app/globals.css content
+        run: |
+          echo "Current globals.css content:"
+          cat app/globals.css || echo "No globals.css found"
       
       - name: Update Next.js config for GitHub Pages
         run: |
@@ -152,6 +179,11 @@ jobs:
               ignoreDuringBuilds: true,
             },
             trailingSlash: true,
+            experimental: {
+              webpackBuildWorker: true, 
+              parallelServerBuildTraces: true,
+              parallelServerCompiles: true,
+            }
           }
           
           module.exports = nextConfig
@@ -162,24 +194,77 @@ jobs:
         run: |
           echo "Current directory structure:"
           find . -type f -name "*.css" | sort
-          ls -la app/
-          ls -la components/ || echo "No components directory"
+          echo "Component and page files:"
+          find . -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "./node_modules/*" | sort
+          echo "Package.json:"
+          cat package.json
       
-      - name: Set NODE_ENV
-        run: echo "NODE_ENV=production" >> $GITHUB_ENV
+      - name: Set NODE_ENV and other vars
+        run: |
+          echo "NODE_ENV=production" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_BASE_PATH=/cit-clinical" >> $GITHUB_ENV
       
       - name: Clean existing build artifacts
         run: |
           rm -rf .next out
       
       - name: Build with Next.js
-        run: npm run build
+        run: |
+          npm run build
+          # If the build produces empty CSS, let's try a dev build for comparison
+          if [ ! -s out/_next/static/css/*.css ] && [ -f out/_next/static/css/*.css ]; then
+            echo "Warning: CSS file is empty, this might be why styling is missing"
+          fi
+      
+      - name: Create script to fix path issues
+        run: |
+          cat > out/_fix-paths.js << 'EOL'
+          const fs = require('fs');
+          const path = require('path');
+          
+          function processHtmlFile(filePath) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            // Fix paths in HTML files
+            const fixedContent = content
+              .replace(/href="\/_next\//g, 'href="/cit-clinical/_next/')
+              .replace(/src="\/_next\//g, 'src="/cit-clinical/_next/');
+            
+            fs.writeFileSync(filePath, fixedContent);
+            console.log(`Fixed paths in ${filePath}`);
+          }
+          
+          function walkDir(dir) {
+            const files = fs.readdirSync(dir);
+            
+            for (const file of files) {
+              const filePath = path.join(dir, file);
+              const stat = fs.statSync(filePath);
+              
+              if (stat.isDirectory()) {
+                walkDir(filePath);
+              } else if (file.endsWith('.html')) {
+                processHtmlFile(filePath);
+              }
+            }
+          }
+          
+          walkDir('.');
+          console.log('Path fixing complete!');
+          EOL
+          
+          cd out && node _fix-paths.js
       
       - name: Debug build output
         run: |
           echo "Output directory contents:"
-          ls -la out/
-          find out -type f | grep -i "\.css$" || echo "No CSS files found in output"
+          ls -la out/ || echo "No out directory found"
+          echo "CSS files in output:"
+          find out -type f -name "*.css" || echo "No CSS files found in output"
+          if [ -f out/_next/static/css/*.css ]; then
+            echo "CSS content sample (first 20 lines):"
+            head -n 20 out/_next/static/css/*.css
+          fi
+          echo "First 50 lines of index.html:"
           head -n 50 out/index.html || echo "No index.html found"
       
       - name: Upload artifact
