@@ -51,15 +51,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Install Tailwind CSS v4 with proper PostCSS plugin
+      - name: Install Tailwind CSS v3 with compatible plugins
         run: |
-          # Install Tailwind CSS v4 and its dependencies directly (without uninstalling first)
-          npm install --save-dev tailwindcss@4.0.0-alpha.3 @tailwindcss/postcss autoprefixer postcss@latest tailwindcss-animate
+          # Install stable version of Tailwind CSS v3 with all required plugins
+          npm install --save-dev tailwindcss@3.4.1 postcss@latest autoprefixer@latest tailwindcss-animate@1.0.7
           
           # Verify installations
           echo "Installed packages:"
           npm list tailwindcss
-          npm list @tailwindcss/postcss
           npm list postcss
           npm list autoprefixer
           npm list tailwindcss-animate
@@ -105,7 +104,7 @@ jobs:
           EOL
           echo "Created optimized next.config.js for GitHub Pages"
           
-          # Create optimized Tailwind config for v4
+          # Create optimized Tailwind config for v3
           cat > tailwind.config.js << 'EOL'
           /** @type {import('tailwindcss').Config} */
           module.exports = {
@@ -191,7 +190,7 @@ jobs:
               }
             },
             plugins: [require("tailwindcss-animate")],
-            // Add safelist for required utility classes
+            // Add safelist for utility classes
             safelist: [
               'bg-background', 
               'text-foreground',
@@ -212,20 +211,20 @@ jobs:
             ],
           }
           EOL
-          echo "Created Tailwind v4 compatible config with safelist"
+          echo "Created Tailwind v3 compatible config with safelist"
           
-          # Create PostCSS config with proper plugin reference for Tailwind v4
+          # Create standard PostCSS config for v3
           cat > postcss.config.js << 'EOL'
           module.exports = {
             plugins: {
-              '@tailwindcss/postcss': {},
+              tailwindcss: {},
               autoprefixer: {},
             },
           }
           EOL
-          echo "Created v4-compatible PostCSS config"
+          echo "Created standard PostCSS config for Tailwind v3"
           
-          # Update globals.css to be compatible with Tailwind CSS v4
+          # Update globals.css to be compatible with Tailwind CSS v3
           cat > app/globals.css << 'EOL'
           @tailwind base;
           @tailwind components;
@@ -313,18 +312,16 @@ jobs:
             }
           }
 
-          /* Modified for Tailwind CSS v4 compatibility */
           @layer base {
             * {
-              border-color: hsl(var(--border));
+              @apply border-border;
             }
             body {
-              background-color: hsl(var(--background));
-              color: hsl(var(--foreground));
+              @apply bg-background text-foreground;
             }
           }
           EOL
-          echo "Created Tailwind v4 compatible globals.css"
+          echo "Created standard globals.css for Tailwind v3"
       
       - name: Set environment variables
         run: |
@@ -340,7 +337,6 @@ jobs:
           ls -la node_modules | grep tailwind
           echo "Tailwind and PostCSS versions:"
           npm list tailwindcss
-          npm list @tailwindcss/postcss
           npm list postcss
           echo "Content of globals.css:"
           cat app/globals.css
@@ -348,100 +344,6 @@ jobs:
           cat tailwind.config.js
           echo "Content of postcss.config.js:"
           cat postcss.config.js
-      
-      - name: Try using Tailwind v3 as fallback
-        if: failure()
-        run: |
-          echo "Trying with Tailwind CSS v3.4.1 as fallback..."
-          npm uninstall tailwindcss @tailwindcss/postcss
-          npm install --save-dev tailwindcss@3.4.1 autoprefixer postcss
-          
-          # Create Tailwind v3 config
-          cat > tailwind.config.js << 'EOL'
-          /** @type {import('tailwindcss').Config} */
-          module.exports = {
-            content: [
-              './app/**/*.{js,ts,jsx,tsx,mdx}',
-              './pages/**/*.{js,ts,jsx,tsx,mdx}',
-              './components/**/*.{js,ts,jsx,tsx,mdx}',
-              './page.tsx',
-            ],
-            theme: {
-              extend: {
-                colors: {
-                  background: "hsl(var(--background))",
-                  foreground: "hsl(var(--foreground))",
-                  card: {
-                    DEFAULT: "hsl(var(--card))",
-                    foreground: "hsl(var(--card-foreground))"
-                  },
-                  popover: {
-                    DEFAULT: "hsl(var(--popover))",
-                    foreground: "hsl(var(--popover-foreground))"
-                  },
-                  primary: {
-                    DEFAULT: "hsl(var(--primary))",
-                    foreground: "hsl(var(--primary-foreground))"
-                  },
-                  secondary: {
-                    DEFAULT: "hsl(var(--secondary))",
-                    foreground: "hsl(var(--secondary-foreground))"
-                  },
-                  muted: {
-                    DEFAULT: "hsl(var(--muted))",
-                    foreground: "hsl(var(--muted-foreground))"
-                  },
-                  accent: {
-                    DEFAULT: "hsl(var(--accent))",
-                    foreground: "hsl(var(--accent-foreground))"
-                  },
-                  destructive: {
-                    DEFAULT: "hsl(var(--destructive))",
-                    foreground: "hsl(var(--destructive-foreground))"
-                  },
-                  border: "hsl(var(--border))",
-                  input: "hsl(var(--input))",
-                  ring: "hsl(var(--ring))"
-                },
-                borderRadius: {
-                  lg: "var(--radius)",
-                  md: "calc(var(--radius) - 2px)",
-                  sm: "calc(var(--radius) - 4px)"
-                },
-                keyframes: {
-                  "accordion-down": {
-                    from: { height: "0" },
-                    to: { height: "var(--radix-accordion-content-height)" }
-                  },
-                  "accordion-up": {
-                    from: { height: "var(--radix-accordion-content-height)" },
-                    to: { height: "0" }
-                  }
-                },
-                animation: {
-                  "accordion-down": "accordion-down 0.2s ease-out",
-                  "accordion-up": "accordion-up 0.2s ease-out"
-                }
-              }
-            },
-            plugins: [require("tailwindcss-animate")],
-          }
-          EOL
-          
-          # Create standard PostCSS config for v3
-          cat > postcss.config.js << 'EOL'
-          module.exports = {
-            plugins: {
-              tailwindcss: {},
-              autoprefixer: {},
-            },
-          }
-          EOL
-          
-          echo "Created Tailwind v3 fallback configuration"
-          
-          # Try the build again
-          npm run build
       
       - name: Build with Next.js
         run: |
