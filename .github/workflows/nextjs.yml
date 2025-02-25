@@ -43,32 +43,11 @@ jobs:
           static_site_generator: next
       - name: Install dependencies
         run: |
-          npm ci
+          npm install
           npm ls tailwindcss
       - name: Setup Tailwind CSS
         run: |
-          # Create a simple tailwind.config.js
-          echo "/** @type {import('tailwindcss').Config} */" > tailwind.config.js
-          echo "module.exports = {" >> tailwind.config.js
-          echo "  content: [" >> tailwind.config.js
-          echo "    './pages/**/*.{js,ts,jsx,tsx,mdx}'," >> tailwind.config.js
-          echo "    './components/**/*.{js,ts,jsx,tsx,mdx}'," >> tailwind.config.js
-          echo "    './app/**/*.{js,ts,jsx,tsx,mdx}'," >> tailwind.config.js
-          echo "    './page.tsx'" >> tailwind.config.js
-          echo "  ]," >> tailwind.config.js
-          echo "  theme: { extend: {} }," >> tailwind.config.js
-          echo "  plugins: []" >> tailwind.config.js
-          echo "}" >> tailwind.config.js
-          
-          # Create a simple postcss.config.js for Tailwind CSS v3
-          echo "module.exports = {" > postcss.config.js
-          echo "  plugins: {" >> postcss.config.js
-          echo "    tailwindcss: {}," >> postcss.config.js
-          echo "    autoprefixer: {}" >> postcss.config.js
-          echo "  }" >> postcss.config.js
-          echo "}" >> postcss.config.js
-          
-          # Install Tailwind CSS v3 if needed
+          # Ensure we have the correct Tailwind CSS version
           npm install --save-dev tailwindcss@3.4.1 postcss@8.4.35 autoprefixer@10.4.18
           
           # Create .browserslistrc file
