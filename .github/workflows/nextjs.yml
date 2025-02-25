@@ -80,6 +80,9 @@ jobs:
                     DEFAULT: "hsl(var(--secondary))",
                     foreground: "hsl(var(--secondary-foreground))"
                   },
+                  border: "hsl(var(--border))",
+                  input: "hsl(var(--input))",
+                  ring: "hsl(var(--ring))",
                 },
                 borderRadius: {
                   lg: "var(--radius)",
@@ -131,6 +134,9 @@ jobs:
               --primary-foreground: 0 0% 98%;
               --secondary: 0 0% 96.1%;
               --secondary-foreground: 0 0% 9%;
+              --border: 0 0% 89.8%;
+              --input: 0 0% 89.8%;
+              --ring: 0 0% 3.9%;
               --radius: 0.5rem;
             }
             .dark {
@@ -140,6 +146,9 @@ jobs:
               --primary-foreground: 0 0% 9%;
               --secondary: 0 0% 14.9%;
               --secondary-foreground: 0 0% 98%;
+              --border: 0 0% 14.9%;
+              --input: 0 0% 14.9%;
+              --ring: 0 0% 83.1%;
             }
           }
           
@@ -177,7 +186,7 @@ jobs:
                   className={cn(
                     "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
                     variant === "default" && "bg-primary text-primary-foreground hover:bg-primary/90",
-                    variant === "outline" && "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+                    variant === "outline" && "border border-input bg-background hover:bg-secondary hover:text-secondary-foreground",
                     variant === "secondary" && "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                     size === "default" && "h-10 px-4 py-2",
                     size === "sm" && "h-9 px-3",
@@ -247,6 +256,8 @@ jobs:
           find . -not -path "./node_modules/*" -not -path "./.git/*" -type f | grep -E '\.tsx$|\.ts$|\.css$|\.js$' | sort
           echo "Content of app/page.tsx:"
           cat app/page.tsx
+          echo "Tailwind Config:"
+          cat tailwind.config.js
       
       - name: Set Next.js environment
         run: |
