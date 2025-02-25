@@ -48,38 +48,19 @@ jobs:
           static_site_generator: next
       - name: Install dependencies
         run: |
-          npm ci
+          rm -rf node_modules package-lock.json
+          npm install
           npm install --save-dev typescript@5.7.3 @types/node@22.13.5 @types/react@18.3.18 @types/react-dom@18.3.5
-      - name: Create tsconfig if missing
+      - name: Verify TypeScript
         run: |
-          if [ ! -f tsconfig.json ]; then
-            echo '{
-              "compilerOptions": {
-                "lib": ["dom", "dom.iterable", "esnext"],
-                "allowJs": true,
-                "skipLibCheck": true,
-                "strict": true,
-                "noEmit": true,
-                "esModuleInterop": true,
-                "module": "esnext",
-                "moduleResolution": "bundler",
-                "resolveJsonModule": true,
-                "isolatedModules": true,
-                "jsx": "preserve",
-                "incremental": true,
-                "plugins": [
-                  {
-                    "name": "next"
-                  }
-                ],
-                "paths": {
-                  "@/*": ["./*"]
-                }
-              },
-              "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-              "exclude": ["node_modules"]
-            }' > tsconfig.json
-          fi
+          echo "TypeScript version:"
+          ./node_modules/.bin/tsc --version
+          echo "Listing node_modules:"
+          ls -la node_modules/typescript
+          echo "Package.json content:"
+          cat package.json
+          echo "tsconfig.json content:"
+          cat tsconfig.json
       - name: Build with Next.js
         run: npm run build
       - name: Upload artifact
