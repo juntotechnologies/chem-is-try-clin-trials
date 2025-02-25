@@ -51,11 +51,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Install Tailwind CSS and animation plugin
+      - name: Install Tailwind CSS with proper PostCSS plugin for v4
         run: |
-          npm install --save-dev tailwindcss@latest autoprefixer@latest postcss@latest tailwindcss-animate@1.0.7
+          # Remove any existing Tailwind CSS and related packages
+          npm uninstall tailwindcss postcss autoprefixer tailwindcss-animate
+          
+          # Install the correct packages for Tailwind CSS v4
+          npm install --save-dev tailwindcss@latest @tailwindcss/postcss autoprefixer postcss tailwindcss-animate
+          
           echo "Installed Tailwind CSS and required plugins"
           npm list tailwindcss
+          npm list @tailwindcss/postcss
           npm list tailwindcss-animate
       
       - name: Create optimized configs
@@ -99,7 +105,7 @@ jobs:
           EOL
           echo "Created optimized next.config.js for GitHub Pages"
           
-          # Create optimized Tailwind config
+          # Create optimized Tailwind config for v4
           cat > tailwind.config.js << 'EOL'
           /** @type {import('tailwindcss').Config} */
           module.exports = {
@@ -107,6 +113,7 @@ jobs:
               './app/**/*.{js,ts,jsx,tsx,mdx}',
               './pages/**/*.{js,ts,jsx,tsx,mdx}',
               './components/**/*.{js,ts,jsx,tsx,mdx}',
+              './page.tsx',
             ],
             theme: {
               extend: {
@@ -186,18 +193,18 @@ jobs:
             plugins: [require("tailwindcss-animate")],
           }
           EOL
-          echo "Created simplified tailwind.config.js"
+          echo "Created Tailwind v4 compatible config"
           
-          # Create optimized PostCSS config
+          # Create PostCSS config with proper plugin reference for Tailwind v4
           cat > postcss.config.js << 'EOL'
           module.exports = {
             plugins: {
-              tailwindcss: {},
+              '@tailwindcss/postcss': {},
               autoprefixer: {},
             },
           }
           EOL
-          echo "Created standard PostCSS config"
+          echo "Created v4-compatible PostCSS config"
       
       - name: Set environment variables
         run: |
