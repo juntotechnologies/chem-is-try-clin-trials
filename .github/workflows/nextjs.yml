@@ -38,41 +38,67 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: 'npm'
       
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           static_site_generator: next
       
-      - name: Clean install
+      - name: Clean install dependencies
         run: |
           rm -rf node_modules package-lock.json
           npm install
-      
-      - name: Install Tailwind CSS
+          
+      - name: Create simple tailwind setup
         run: |
+          # Update package.json to ensure tailwindcss is explicitly defined
           npm install --save-dev tailwindcss@3.4.1 postcss@8.4.35 autoprefixer@10.4.18
           
+          # Create simple postcss.config.js
+          cat > postcss.config.js << 'EOL'
+          module.exports = {
+            plugins: {
+              tailwindcss: {},
+              autoprefixer: {},
+            },
+          }
+          EOL
+          
+          # Create simple tailwind.config.js
+          cat > tailwind.config.js << 'EOL'
+          /** @type {import('tailwindcss').Config} */
+          module.exports = {
+            content: [
+              './pages/**/*.{js,ts,jsx,tsx,mdx}',
+              './components/**/*.{js,ts,jsx,tsx,mdx}',
+              './app/**/*.{js,ts,jsx,tsx,mdx}',
+              './page.tsx',
+            ],
+            theme: {
+              extend: {},
+            },
+            plugins: [],
+          }
+          EOL
+          
           # Create .browserslistrc file
-          echo "last 2 versions" > .browserslistrc
-          echo "not dead" >> .browserslistrc
-          echo "> 0.5%" >> .browserslistrc
-          echo "Firefox ESR" >> .browserslistrc
-      
-      - name: Debug environment
-        run: |
-          echo "Installed packages:"
-          npm list --depth=0
-          echo "Files in project:"
-          ls -la
-          echo "PostCSS config:"
-          cat postcss.config.js
-          echo "Tailwind config:"
-          cat tailwind.config.js
+          cat > .browserslistrc << 'EOL'
+          last 2 versions
+          not dead
+          > 0.5%
+          Firefox ESR
+          EOL
+          
+          # Verify installations
+          echo "Node modules:"
+          ls -la node_modules
+          echo "Tailwind installation:"
+          ls -la node_modules/tailwindcss || echo "Tailwind directory not found"
       
       - name: Build with Next.js
-        run: npm run build
+        run: |
+          export NODE_OPTIONS="--max_old_space_size=4096"
+          npm run build
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
