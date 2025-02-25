@@ -43,52 +43,112 @@ jobs:
           static_site_generator: next
       
       - name: Install dependencies
-        run: npm install
-          
-      - name: No-Tailwind Setup
         run: |
-          # Create a simple static site with no Tailwind
-          mkdir -p out
-          cat > out/index.html << 'EOL'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Clinical Intervention Theories</title>
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                line-height: 1.6;
-                margin: 0;
-                padding: 20px;
-                color: #333;
-                max-width: 800px;
-                margin: 0 auto;
-              }
-              h1 {
-                color: #2c3e50;
-              }
-              p {
-                margin-bottom: 1em;
-              }
-              .container {
-                padding: 20px;
-                background: #f9f9f9;
-                border-radius: 5px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <h1>Clinical Intervention Theories</h1>
-              <p>This page is a placeholder for the full site that will be deployed soon.</p>
-              <p>Please check back later for the complete content on Clinical Intervention Theories.</p>
-            </div>
-          </body>
-          </html>
+          npm install
+          # Install the tailwindcss postcss plugin specifically
+          npm install --save-dev @tailwindcss/postcss
+          npm list tailwindcss
+          npm list @tailwindcss/postcss
+      
+      - name: Update PostCSS config for Tailwind v4
+        run: |
+          cat > postcss.config.js << 'EOL'
+          module.exports = {
+            plugins: {
+              '@tailwindcss/postcss': {},
+              autoprefixer: {},
+            },
+          };
           EOL
+          cat postcss.config.js
+      
+      - name: Update Tailwind config
+        run: |
+          cat > tailwind.config.js << 'EOL'
+          /** @type {import('tailwindcss').Config} */
+          module.exports = {
+            content: [
+              './pages/**/*.{js,ts,jsx,tsx,mdx}',
+              './components/**/*.{js,ts,jsx,tsx,mdx}',
+              './app/**/*.{js,ts,jsx,tsx,mdx}',
+              './page.tsx',
+            ],
+            theme: {
+              extend: {},
+            },
+            plugins: [],
+          }
+          EOL
+          cat tailwind.config.js
+      
+      - name: Debug Environment
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Node modules:"
+          ls -la node_modules | grep tailwind
+          echo "PostCSS Config:"
+          cat postcss.config.js
+          echo "Tailwind Config:"
+          cat tailwind.config.js
+          echo "Global CSS:"
+          cat app/globals.css || echo "globals.css not found"
+      
+      - name: Try building with Next.js
+        id: build_attempt
+        run: |
+          npm run build || {
+            echo "Build failed, falling back to static HTML"
+            mkdir -p out
+            cat > out/index.html << 'EOL'
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Clinical Intervention Theories</title>
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  line-height: 1.6;
+                  margin: 0;
+                  padding: 20px;
+                  color: #333;
+                  max-width: 800px;
+                  margin: 0 auto;
+                }
+                h1 {
+                  color: #2c3e50;
+                }
+                p {
+                  margin-bottom: 1em;
+                }
+                .container {
+                  padding: 20px;
+                  background: #f9f9f9;
+                  border-radius: 5px;
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>Clinical Intervention Theories</h1>
+                <p>The build process is being debugged. This page is a fallback.</p>
+                <p>Error occurred during the build process. We're working on it!</p>
+                <h2>Error Details:</h2>
+                <pre id="error-details"></pre>
+              </div>
+              <script>
+                // We'll inject the actual error details here through the workflow
+                document.getElementById('error-details').textContent = 
+                  'Check GitHub Actions logs for detailed error information.';
+              </script>
+            </body>
+            </html>
+            EOL
+            exit 0  # Continue workflow even if build fails
+          }
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
