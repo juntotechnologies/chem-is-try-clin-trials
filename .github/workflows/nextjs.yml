@@ -48,6 +48,92 @@ jobs:
           npm ci
           npm list tailwindcss
       
+      - name: Ensure PostCSS configuration is correct
+        run: |
+          cat > postcss.config.js << 'EOL'
+          module.exports = {
+            plugins: {
+              tailwindcss: {},
+              autoprefixer: {},
+            },
+          }
+          EOL
+          cat postcss.config.js
+      
+      - name: Ensure Tailwind config is correct
+        run: |
+          cat > tailwind.config.js << 'EOL'
+          /** @type {import('tailwindcss').Config} */
+          module.exports = {
+            content: [
+              './pages/**/*.{js,ts,jsx,tsx,mdx}',
+              './components/**/*.{js,ts,jsx,tsx,mdx}',
+              './app/**/*.{js,ts,jsx,tsx,mdx}',
+              './page.tsx',
+            ],
+            theme: {
+              extend: {
+                colors: {
+                  background: "hsl(var(--background))",
+                  foreground: "hsl(var(--foreground))",
+                  card: {
+                    DEFAULT: "hsl(var(--card))",
+                    foreground: "hsl(var(--card-foreground))"
+                  },
+                  popover: {
+                    DEFAULT: "hsl(var(--popover))",
+                    foreground: "hsl(var(--popover-foreground))"
+                  },
+                  primary: {
+                    DEFAULT: "hsl(var(--primary))",
+                    foreground: "hsl(var(--primary-foreground))"
+                  },
+                  secondary: {
+                    DEFAULT: "hsl(var(--secondary))",
+                    foreground: "hsl(var(--secondary-foreground))"
+                  },
+                  muted: {
+                    DEFAULT: "hsl(var(--muted))",
+                    foreground: "hsl(var(--muted-foreground))"
+                  },
+                  accent: {
+                    DEFAULT: "hsl(var(--accent))",
+                    foreground: "hsl(var(--accent-foreground))"
+                  },
+                  destructive: {
+                    DEFAULT: "hsl(var(--destructive))",
+                    foreground: "hsl(var(--destructive-foreground))"
+                  },
+                  border: "hsl(var(--border))",
+                  input: "hsl(var(--input))",
+                  ring: "hsl(var(--ring))"
+                },
+                borderRadius: {
+                  lg: "var(--radius)",
+                  md: "calc(var(--radius) - 2px)",
+                  sm: "calc(var(--radius) - 4px)"
+                },
+                keyframes: {
+                  "accordion-down": {
+                    from: { height: "0" },
+                    to: { height: "var(--radix-accordion-content-height)" }
+                  },
+                  "accordion-up": {
+                    from: { height: "var(--radix-accordion-content-height)" },
+                    to: { height: "0" }
+                  }
+                },
+                animation: {
+                  "accordion-down": "accordion-down 0.2s ease-out",
+                  "accordion-up": "accordion-up 0.2s ease-out"
+                }
+              }
+            },
+            plugins: [],
+          }
+          EOL
+          cat tailwind.config.js
+      
       - name: Update Next.js config for GitHub Pages
         run: |
           cat > next.config.js << 'EOL'
@@ -72,11 +158,29 @@ jobs:
           EOL
           cat next.config.js
       
+      - name: Debug environment
+        run: |
+          echo "Current directory structure:"
+          find . -type f -name "*.css" | sort
+          ls -la app/
+          ls -la components/ || echo "No components directory"
+      
       - name: Set NODE_ENV
         run: echo "NODE_ENV=production" >> $GITHUB_ENV
       
+      - name: Clean existing build artifacts
+        run: |
+          rm -rf .next out
+      
       - name: Build with Next.js
         run: npm run build
+      
+      - name: Debug build output
+        run: |
+          echo "Output directory contents:"
+          ls -la out/
+          find out -type f | grep -i "\.css$" || echo "No CSS files found in output"
+          head -n 50 out/index.html || echo "No index.html found"
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
