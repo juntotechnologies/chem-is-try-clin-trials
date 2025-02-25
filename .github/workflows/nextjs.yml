@@ -2,7 +2,7 @@
 #
 # To get started with Next.js see: https://nextjs.org/docs/getting-started
 #
-name: Deploy Next.js site to Pages
+name: Deploy Next.js site to GitHub Pages
 
 on:
   # Runs on pushes targeting the default branch
@@ -38,127 +38,75 @@ jobs:
           node-version: "18"
           cache: 'npm'
       
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-modules-
-      
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           static_site_generator: next
       
-      - name: List existing config files
+      - name: Ensure .nojekyll file exists
         run: |
-          echo "Checking for existing configuration files..."
-          if [ -f tailwind.config.js ]; then
-            echo "Existing tailwind.config.js:"
-            cat tailwind.config.js
-          else
-            echo "No existing tailwind.config.js found"
-          fi
-          
-          if [ -f postcss.config.js ]; then
-            echo "Existing postcss.config.js:"
-            cat postcss.config.js
-          else
-            echo "No existing postcss.config.js found"
-          fi
-          
-          if [ -f next.config.js ]; then
-            echo "Existing next.config.js:"
-            cat next.config.js
-          else
-            echo "No existing next.config.js found"
-          fi
+          touch ./public/.nojekyll
+          echo "Created .nojekyll file to disable Jekyll processing"
       
-      - name: Install dependencies with exact versions
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Tailwind CSS and animation plugin
         run: |
-          npm ci
-          # Install tailwindcss-animate explicitly
-          npm install --save-dev tailwindcss-animate@1.0.7
-          # Output installed package versions for debugging
-          echo "Installed Tailwind CSS version:"
+          npm install --save-dev tailwindcss@latest autoprefixer@latest postcss@latest tailwindcss-animate@1.0.7
+          echo "Installed Tailwind CSS and required plugins"
           npm list tailwindcss
-          echo "Installed Tailwind CSS Animate version:"
           npm list tailwindcss-animate
-          echo "Installed PostCSS version:"
-          npm list postcss
-          echo "Installed Autoprefixer version:"
-          npm list autoprefixer
       
-      - name: Update Next.js config for GitHub Pages
+      - name: Create optimized configs
         run: |
+          # Create optimized Next.js config for GitHub Pages
           cat > next.config.js << 'EOL'
           /** @type {import('next').NextConfig} */
           const nextConfig = {
+            // Enable static exports for GitHub Pages
             output: 'export',
+            
+            // Set basePath to match GitHub Pages repository name
             basePath: process.env.NODE_ENV === 'production' ? '/cit-clinical' : '',
+            
+            // Set assetPrefix for correct asset paths in GitHub Pages
             assetPrefix: process.env.NODE_ENV === 'production' ? '/cit-clinical/' : '',
+            
+            // Disable server-based image optimization for static export
             images: {
               unoptimized: true,
             },
+            
+            // Skip type checking and linting during build
             typescript: {
               ignoreBuildErrors: true,
             },
             eslint: {
               ignoreDuringBuilds: true,
             },
+            
+            // Add trailing slash for consistent paths
             trailingSlash: true,
-            experimental: {
-              webpackBuildWorker: true,
-            },
-            distDir: '.next',
+            
+            // Performance optimizations
+            swcMinify: true,
             poweredByHeader: false,
             reactStrictMode: false,
-            swcMinify: true,
           }
           
           module.exports = nextConfig
           EOL
-          cat next.config.js
-      
-      - name: Set environment variables
-        run: |
-          echo "NODE_ENV=production" >> $GITHUB_ENV
-          echo "NEXT_PUBLIC_BASE_PATH=/cit-clinical" >> $GITHUB_ENV
-          echo "LOCAL_DEV_EMULATION=true" >> $GITHUB_ENV
-          # This helps emulate some aspects of dev mode while still building for production
-      
-      - name: Debug environment
-        run: |
-          echo "Current directory structure:"
-          find . -type f -name "*.css" | sort
-          echo "Component and page files:"
-          find . -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "./node_modules/*" | sort
-          echo "Package.json:"
-          cat package.json
-      
-      - name: Check globals.css content
-        run: |
-          echo "Current globals.css content:"
-          cat app/globals.css || echo "No globals.css found in app directory"
-      
-      - name: Create optimized build environment
-        run: |
-          # Copy the styles into a temporary location to ensure they're not lost
-          mkdir -p .styles-backup
-          cp -r app/globals.css .styles-backup/ || echo "No globals.css to backup"
+          echo "Created optimized next.config.js for GitHub Pages"
           
-          # Clean existing build artifacts
-          rm -rf .next out
-          
-          # Create a lighter tailwind config specifically for production builds
-          cat > tailwind.prod.config.js << 'EOL'
+          # Create optimized Tailwind config
+          cat > tailwind.config.js << 'EOL'
           /** @type {import('tailwindcss').Config} */
           module.exports = {
             content: [
+              './app/**/*.{js,ts,jsx,tsx,mdx}',
               './pages/**/*.{js,ts,jsx,tsx,mdx}',
               './components/**/*.{js,ts,jsx,tsx,mdx}',
-              './app/**/*.{js,ts,jsx,tsx,mdx}',
             ],
             theme: {
               extend: {
@@ -235,96 +183,47 @@ jobs:
                 }
               }
             },
-            safelist: [
-              'bg-background', 'text-foreground',
-              'bg-primary', 'text-primary', 'text-primary-foreground',
-              'bg-secondary', 'text-secondary', 'text-secondary-foreground',
-              'bg-accent', 'text-accent', 'text-accent-foreground',
-              'bg-muted', 'text-muted', 'text-muted-foreground',
-              'border-border', 'ring-ring'
-            ],
             plugins: [require("tailwindcss-animate")],
-            exclude: [
-              '**/node_modules/**',
-              '**/.git/**',
-              '**/out/**',
-              '**/.next/**'
-            ]
           }
           EOL
+          echo "Created simplified tailwind.config.js"
           
-          # Create a simplified postcss config optimized for build speed
+          # Create optimized PostCSS config
           cat > postcss.config.js << 'EOL'
           module.exports = {
             plugins: {
-              tailwindcss: {
-                config: './tailwind.prod.config.js',
-              },
+              tailwindcss: {},
               autoprefixer: {},
             },
           }
           EOL
-          cat postcss.config.js
-          
-          # Create .npmrc to disable some features that might slow down the build
-          cat > .npmrc << 'EOL'
-          fund=false
-          audit=false
-          save-exact=true
-          EOL
-          
-          # Create an optimization file for Next.js
-          mkdir -p .next/cache
-          touch .next/cache/next-optimize-css
-
+          echo "Created standard PostCSS config"
+      
+      - name: Set environment variables
+        run: |
+          echo "NODE_ENV=production" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_BASE_PATH=/cit-clinical" >> $GITHUB_ENV
+          echo "NEXT_TELEMETRY_DISABLED=1" >> $GITHUB_ENV
+      
       - name: Build with Next.js
         run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
-          
-          # Show progress during build for debugging
-          echo "Starting Next.js build process..."
-          
-          # Use a lightweight build approach
-          NEXT_TELEMETRY_DISABLED=1 SKIP_UNNECESSARY_SCANS=true npm run build -- --no-lint
-          
-          echo "Build completed!"
-          
-          # Check if CSS files were generated
-          echo "CSS files in output:"
-          find out -type f -name "*.css" || echo "No CSS files found in output"
-          
-          if ls out/_next/static/css/*.css 1> /dev/null 2>&1; then
-            echo "CSS content sample (first 30 lines):"
-            head -n 30 out/_next/static/css/*.css
-            
-            echo "CSS file size:"
-            ls -la out/_next/static/css/*.css
-            
-            # Check if CSS file is empty or very small
-            for cssfile in out/_next/static/css/*.css; do
-              filesize=$(stat -c%s "$cssfile")
-              echo "CSS file $cssfile size: $filesize bytes"
-              if [ "$filesize" -lt 1000 ]; then
-                echo "Warning: CSS file $cssfile is suspiciously small!"
-              fi
-            done
-          else
-            echo "No CSS files found in the expected location"
-          fi
+          echo "Starting Next.js build..."
+          npm run build
+          echo "Build completed successfully!"
       
-      - name: Create script to fix path issues
+      - name: Optimize for GitHub Pages
         run: |
+          # Create script to fix path issues in HTML and CSS files
           cat > out/_fix-paths.js << 'EOL'
           const fs = require('fs');
           const path = require('path');
           
           function processHtmlFile(filePath) {
             const content = fs.readFileSync(filePath, 'utf8');
-            // Fix paths in HTML files
             const fixedContent = content
               .replace(/href="\/_next\//g, 'href="/cit-clinical/_next/')
               .replace(/src="\/_next\//g, 'src="/cit-clinical/_next/')
-              // Also fix any absolute URLs that might be in the CSS
               .replace(/"\/cit-clinical\/cit-clinical\//g, '"/cit-clinical/');
             
             fs.writeFileSync(filePath, fixedContent);
@@ -333,10 +232,8 @@ jobs:
           
           function processCSSFile(filePath) {
             const content = fs.readFileSync(filePath, 'utf8');
-            // Fix paths in CSS files
             const fixedContent = content
               .replace(/url\(\/_next\//g, 'url(/cit-clinical/_next/')
-              // Also fix any absolute URLs that might be in the CSS
               .replace(/url\(\/cit-clinical\/cit-clinical\//g, 'url(/cit-clinical/');
             
             fs.writeFileSync(filePath, fixedContent);
@@ -364,13 +261,16 @@ jobs:
           console.log('Path fixing complete!');
           EOL
           
+          # Ensure .nojekyll exists in the output directory
+          touch out/.nojekyll
+          
+          # Run the path fixing script
           cd out && node _fix-paths.js
       
-      - name: Create dev tools script
+      - name: Add debug tools to output
         run: |
-          # Create a script that adds useful development tools to the page
-          cat > out/_dev-tools.js << 'EOL'
-          // This script adds a small debug panel to the page
+          # Create a small debug panel script
+          cat > out/_debug-panel.js << 'EOL'
           document.addEventListener('DOMContentLoaded', function() {
             const debugPanel = document.createElement('div');
             debugPanel.style.position = 'fixed';
@@ -382,50 +282,42 @@ jobs:
             debugPanel.style.borderRadius = '5px';
             debugPanel.style.zIndex = '9999';
             debugPanel.style.fontSize = '12px';
-            debugPanel.style.maxWidth = '300px';
-            debugPanel.style.maxHeight = '200px';
-            debugPanel.style.overflow = 'auto';
             
             debugPanel.innerHTML = `
-              <h3 style="margin-top: 0; margin-bottom: 5px;">GitHub Pages Build</h3>
-              <p>Base Path: /cit-clinical</p>
-              <p>Build Time: ${new Date().toISOString()}</p>
-              <button id="debug-toggle-styles" style="background: #333; border: 1px solid #666; color: white; padding: 5px; cursor: pointer;">Toggle Styles</button>
+              <div style="margin-bottom: 8px;">CIT Clinical - GitHub Pages</div>
+              <div style="font-size: 10px; opacity: 0.8;">Build: ${new Date().toISOString()}</div>
+              <button id="toggle-styles" style="margin-top: 5px; background: #333; border: 1px solid #666; color: white; padding: 4px 8px; cursor: pointer; font-size: 10px;">Toggle CSS</button>
             `;
             
             document.body.appendChild(debugPanel);
             
-            // Add a toggle for styles
-            document.getElementById('debug-toggle-styles').addEventListener('click', function() {
-              const stylesheets = document.querySelectorAll('link[rel="stylesheet"]');
-              stylesheets.forEach(sheet => {
+            document.getElementById('toggle-styles').addEventListener('click', function() {
+              document.querySelectorAll('link[rel="stylesheet"]').forEach(sheet => {
                 sheet.disabled = !sheet.disabled;
               });
             });
           });
           EOL
           
-          # Inject this script into the HTML files
+          # Add script reference to all HTML files
           for htmlFile in $(find out -name "*.html"); do
-            # Add the script before the closing body tag
-            sed -i 's/<\/body>/<script src="\/_dev-tools.js"><\/script><\/body>/g' "$htmlFile"
-          done
-          
-          # Fix the path for GitHub Pages
-          for htmlFile in $(find out -name "*.html"); do
-            sed -i 's/\/_dev-tools.js/\/cit-clinical\/_dev-tools.js/g' "$htmlFile"
+            sed -i 's/<\/body>/<script src="\/cit-clinical\/_debug-panel.js"><\/script><\/body>/g' "$htmlFile"
           done
       
-      - name: Debug build output
+      - name: Verify output
         run: |
-          echo "Output directory contents:"
-          ls -la out/ || echo "No out directory found"
+          echo "Verifying build output..."
+          echo "Files in output directory:"
+          ls -la out/
           
-          echo "HTML structure in index.html:"
-          grep -A 10 "<body" out/index.html || echo "No body tag found in index.html"
+          echo "CSS files generated:"
+          find out -type f -name "*.css" | sort
           
-          echo "CSS link tags in index.html:"
-          grep -o '<link [^>]*rel="stylesheet"[^>]*>' out/index.html || echo "No CSS link tags found in index.html"
+          echo "Checking for .nojekyll file:"
+          [ -f out/.nojekyll ] && echo "✅ .nojekyll file exists" || echo "❌ .nojekyll file missing"
+          
+          echo "Checking for critical HTML files:"
+          [ -f out/index.html ] && echo "✅ index.html exists" || echo "❌ index.html missing"
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
