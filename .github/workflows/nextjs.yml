@@ -38,6 +38,14 @@ jobs:
           node-version: "18"
           cache: 'npm'
       
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-modules-
+      
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
@@ -149,7 +157,9 @@ jobs:
               './pages/**/*.{js,ts,jsx,tsx,mdx}',
               './components/**/*.{js,ts,jsx,tsx,mdx}',
               './app/**/*.{js,ts,jsx,tsx,mdx}',
-              './**/*.{js,ts,jsx,tsx,mdx}',
+              './src/**/*.{js,ts,jsx,tsx,mdx}',
+              './page.tsx',
+              './lib/**/*.{js,ts,jsx,tsx}',
             ],
             theme: {
               extend: {
@@ -231,6 +241,13 @@ jobs:
             // Enable all variants and don't purge unused classes in this config
             safelist: [{ pattern: /.*/ }],
             plugins: [require("tailwindcss-animate")],
+            // Add explicit exclude patterns to prevent scanning node_modules
+            exclude: [
+              '**/node_modules/**',
+              '**/.git/**',
+              '**/out/**',
+              '**/.next/**'
+            ]
           }
           EOL
           
@@ -251,7 +268,8 @@ jobs:
       - name: Build with Next.js
         run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
-          npm run build
+          # Build with SKIP_UNNECESSARY_SCANS to speed up Tailwind
+          SKIP_UNNECESSARY_SCANS=true npm run build
           
           # Check if CSS files were generated
           echo "CSS files in output:"
