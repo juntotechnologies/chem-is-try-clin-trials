@@ -12,6 +12,7 @@ const nextConfig = {
   assetPrefix: process.env.NODE_ENV === 'production' ? '/cit-clinical/' : '',
   images: {
     unoptimized: true,
+    domains: [],
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -19,6 +20,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  trailingSlash: true,
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
