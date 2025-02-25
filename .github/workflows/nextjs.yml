@@ -42,21 +42,48 @@ jobs:
         with:
           static_site_generator: next
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
-      - name: Debug package installs
         run: |
-          echo "======== Node version ========"
-          node -v
-          echo "======== NPM version ========"
-          npm -v
-          echo "======== TailwindCSS ========"
-          ls -la node_modules/tailwindcss || echo "TailwindCSS not found"
-          echo "======== Key files ========"
-          ls -la tailwind.config.js postcss.config.js
-          echo "======== Package.json ========"
-          cat package.json
+          npm install --force
+          npm install -g tailwindcss postcss autoprefixer
+          npm link tailwindcss postcss autoprefixer
+          npx tailwindcss --version # Check if tailwindcss is properly installed
+      - name: Prepare build environment
+        run: |
+          # Ensure all necessary Tailwind files are present
+          echo "Creating Tailwind config files if needed"
+          
+          # Create a minimal globals.css file if it doesn't exist
+          if [ ! -f app/globals.css ]; then
+            mkdir -p app
+            echo "@tailwind base;" > app/globals.css
+            echo "@tailwind components;" >> app/globals.css
+            echo "@tailwind utilities;" >> app/globals.css
+          fi
+          
+          # Debug information
+          echo "Directory structure:"
+          ls -la
+          echo "Node modules:"
+          ls -la node_modules || echo "No node_modules folder found"
+          echo "TailwindCSS installation:"
+          npm list tailwindcss || echo "TailwindCSS not found in local dependencies"
+          npm list -g tailwindcss || echo "TailwindCSS not found in global dependencies"
+          
+          # Force tailwindcss path to be available
+          export NODE_PATH=$(npm root -g)
+          echo "NODE_PATH=$NODE_PATH"
+          
+          # Copy Tailwind directly to local node_modules if it's not there
+          if [ ! -d "node_modules/tailwindcss" ]; then
+            echo "Copying global tailwindcss to local node_modules"
+            mkdir -p node_modules/tailwindcss
+            cp -r $(npm root -g)/tailwindcss/* node_modules/tailwindcss/
+          fi
       - name: Build with Next.js
-        run: npm run build
+        run: |
+          export NODE_PATH=$(npm root -g):$NODE_PATH
+          echo "NODE_PATH=$NODE_PATH"
+          NODE_OPTIONS=--enable-source-maps NEXT_TELEMETRY_DISABLED=1 npm run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
