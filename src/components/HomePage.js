@@ -222,6 +222,86 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
+                <div className="tabs-content" data-tab="safety">
+                  <div className="card">
+                    <div className="card-header">
+                      <div className="card-title">Safety Monitoring</div>
+                      <div className="card-description">Comprehensive safety assessment throughout the trial</div>
+                    </div>
+                    <div className="card-content">
+                      <ul className="list-disc list-inside space-y-2">
+                        <li>Adverse event collection and categorization</li>
+                        <li>Vital signs monitoring and analysis</li>
+                        <li>Laboratory safety parameters evaluation</li>
+                        <li>Data Safety Monitoring Board (DSMB) oversight</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="tabs-content" data-tab="pk">
+                  <div className="card">
+                    <div className="card-header">
+                      <div className="card-title">Pharmacokinetics</div>
+                      <div className="card-description">ADME studies and concentration-time profiles</div>
+                    </div>
+                    <div className="card-content">
+                      <ul className="list-disc list-inside space-y-2">
+                        <li>Bioavailability and bioequivalence assessment</li>
+                        <li>Drug concentration measurements in plasma and tissues</li>
+                        <li>Half-life and clearance rate determination</li>
+                        <li>Population PK modeling and simulation</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="tabs-content" data-tab="pd">
+                  <div className="card">
+                    <div className="card-header">
+                      <div className="card-title">Pharmacodynamics</div>
+                      <div className="card-description">Measuring drug effects on the body</div>
+                    </div>
+                    <div className="card-content">
+                      <ul className="list-disc list-inside space-y-2">
+                        <li>Biomarker identification and validation</li>
+                        <li>Receptor binding and occupancy studies</li>
+                        <li>Dose-response relationship characterization</li>
+                        <li>PK/PD modeling for optimal dosing strategies</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="tabs-content" data-tab="efficacy">
+                  <div className="card">
+                    <div className="card-header">
+                      <div className="card-title">Efficacy Endpoints</div>
+                      <div className="card-description">Evaluating treatment effectiveness</div>
+                    </div>
+                    <div className="card-content">
+                      <ul className="list-disc list-inside space-y-2">
+                        <li>Primary and secondary endpoint definition</li>
+                        <li>Surrogate marker assessment and validation</li>
+                        <li>Clinical outcome measurements</li>
+                        <li>Quality of life and patient-reported outcomes</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="tabs-content" data-tab="analysis">
+                  <div className="card">
+                    <div className="card-header">
+                      <div className="card-title">Data Analysis</div>
+                      <div className="card-description">Advanced statistical methods and reporting</div>
+                    </div>
+                    <div className="card-content">
+                      <ul className="list-disc list-inside space-y-2">
+                        <li>Statistical analysis plan development</li>
+                        <li>Interim analysis for adaptive trial designs</li>
+                        <li>Bayesian statistical approaches</li>
+                        <li>Comprehensive clinical study reports (CSR)</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
