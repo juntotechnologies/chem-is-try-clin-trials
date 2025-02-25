@@ -1,6 +1,9 @@
 {
-  "extends": "next/core-web-vitals",
+  "extends": [
+    "react-app",
+    "react-app/jest"
+  ],
   "rules": {
-    "@typescript-eslint/no-empty-interface": "off"
+    "no-unused-vars": "warn"
   }
 } 
