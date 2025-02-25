@@ -68,29 +68,141 @@ jobs:
               "./page.tsx",
             ],
             theme: {
-              extend: {},
+              extend: {
+                colors: {
+                  background: "hsl(var(--background))",
+                  foreground: "hsl(var(--foreground))",
+                  primary: {
+                    DEFAULT: "hsl(var(--primary))",
+                    foreground: "hsl(var(--primary-foreground))"
+                  },
+                  secondary: {
+                    DEFAULT: "hsl(var(--secondary))",
+                    foreground: "hsl(var(--secondary-foreground))"
+                  },
+                },
+                borderRadius: {
+                  lg: "var(--radius)",
+                  md: "calc(var(--radius) - 2px)",
+                  sm: "calc(var(--radius) - 4px)"
+                },
+              },
             },
             plugins: [],
           }' > tailwind.config.js
           cat tailwind.config.js
       
-      - name: Create simplified app page
+      - name: Create Next.js config file
+        run: |
+          echo 'const nextConfig = {
+            output: "export",
+            basePath: process.env.NODE_ENV === "production" ? "/cit-clinical" : "",
+            assetPrefix: process.env.NODE_ENV === "production" ? "/cit-clinical/" : "",
+            images: {
+              unoptimized: true,
+            },
+            typescript: {
+              ignoreBuildErrors: true,
+            },
+            eslint: {
+              ignoreDuringBuilds: true,
+            },
+            trailingSlash: true,
+          }
+          
+          module.exports = nextConfig' > next.config.js
+          cat next.config.js
+      
+      - name: Create app files
         run: |
           mkdir -p app
+          mkdir -p components/ui
           
-          # Create a simplified globals.css
+          # Create a better globals.css with CSS variables
           echo '@tailwind base;
           @tailwind components;
           @tailwind utilities;
 
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
+          @layer base {
+            :root {
+              --background: 0 0% 100%;
+              --foreground: 0 0% 3.9%;
+              --primary: 0 0% 9%;
+              --primary-foreground: 0 0% 98%;
+              --secondary: 0 0% 96.1%;
+              --secondary-foreground: 0 0% 9%;
+              --radius: 0.5rem;
+            }
+            .dark {
+              --background: 0 0% 3.9%;
+              --foreground: 0 0% 98%;
+              --primary: 0 0% 98%;
+              --primary-foreground: 0 0% 9%;
+              --secondary: 0 0% 14.9%;
+              --secondary-foreground: 0 0% 98%;
+            }
+          }
+          
+          @layer base {
+            * {
+              @apply border-border;
+            }
+            body {
+              @apply bg-background text-foreground;
+            }
           }' > app/globals.css
           
+          # Create utils.ts for classname merging
+          mkdir -p lib
+          echo 'import { clsx, type ClassValue } from "clsx"
+          import { twMerge } from "tailwind-merge"
+          
+          export function cn(...inputs: ClassValue[]) {
+            return twMerge(clsx(inputs))
+          }' > lib/utils.ts
+          
+          # Create a button component
+          echo 'import * as React from "react"
+          import { cn } from "@/lib/utils"
+          
+          interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+            variant?: "default" | "outline" | "secondary"
+            size?: "default" | "sm" | "lg"
+          }
+          
+          const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+            ({ className, variant = "default", size = "default", ...props }, ref) => {
+              return (
+                <button
+                  className={cn(
+                    "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+                    variant === "default" && "bg-primary text-primary-foreground hover:bg-primary/90",
+                    variant === "outline" && "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+                    variant === "secondary" && "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                    size === "default" && "h-10 px-4 py-2",
+                    size === "sm" && "h-9 px-3",
+                    size === "lg" && "h-11 px-8",
+                    className
+                  )}
+                  ref={ref}
+                  {...props}
+                />
+              )
+            }
+          )
+          Button.displayName = "Button"
+          
+          export { Button }' > components/ui/button.tsx
+          
           # Create a simplified layout.tsx
-          echo 'export default function RootLayout({
+          echo 'import "@/app/globals.css"
+
+          export const metadata = {
+            title: "Clinical Intervention Theories",
+            description: "A site about clinical intervention theories",
+          }
+          
+          export default function RootLayout({
             children,
           }: {
             children: React.ReactNode
@@ -102,19 +214,26 @@ jobs:
             )
           }' > app/layout.tsx
           
-          # Create a simplified page.tsx with some Tailwind classes
-          echo 'export default function Home() {
+          # Create a page.tsx with components imported
+          echo 'import { Button } from "@/components/ui/button"
+          
+          export default function Home() {
             return (
-              <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+              <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
                   <div className="md:flex">
                     <div className="p-8">
-                      <div className="uppercase tracking-wide text-sm text-indigo-500 font-semibold">Clinical Intervention Theories</div>
-                      <h1 className="mt-1 text-xl font-medium text-black">Welcome to our site</h1>
-                      <p className="mt-2 text-gray-500">This is a simplified version of our site created for GitHub Pages deployment.</p>
-                      <button className="mt-4 px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
-                        Learn More
-                      </button>
+                      <div className="uppercase tracking-wide text-sm text-primary font-semibold">Clinical Intervention Theories</div>
+                      <h1 className="mt-1 text-xl font-medium text-foreground">Welcome to our site</h1>
+                      <p className="mt-2 text-secondary-foreground">This is an enhanced version of our site with proper UI components.</p>
+                      
+                      <div className="mt-6 space-y-4">
+                        <Button>Default Button</Button>
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm">Outline</Button>
+                          <Button variant="secondary" size="sm">Secondary</Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -125,11 +244,13 @@ jobs:
       - name: Debug Environment
         run: |
           echo "Generated files:"
-          find app -type f | sort
+          find . -not -path "./node_modules/*" -not -path "./.git/*" -type f | grep -E '\.tsx$|\.ts$|\.css$|\.js$' | sort
           echo "Content of app/page.tsx:"
           cat app/page.tsx
-          echo "Content of app/globals.css:"
-          cat app/globals.css
+      
+      - name: Set Next.js environment
+        run: |
+          echo "NODE_ENV=production" >> $GITHUB_ENV
       
       - name: Try building with Next.js
         run: npm run build
@@ -171,14 +292,6 @@ jobs:
             <p>See GitHub Actions logs for detailed error information.</p>
           </body>
           </html>' > out/index.html
-      
-      - name: Check for out directory
-        run: |
-          if [ ! -d "out" ]; then
-            mkdir -p out
-            cp -r public/* out/ 2>/dev/null || :
-            echo "Build may have failed silently. Check logs." > out/index.html
-          fi
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
