@@ -48,69 +48,66 @@ jobs:
           touch ./public/.nojekyll
           echo "Created .nojekyll file to disable Jekyll processing"
       
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Install Tailwind CSS v3 with compatible plugins
+      - name: Clean install dependencies with production flag
         run: |
-          # Install stable version of Tailwind CSS v3 with all required plugins
-          npm install --save-dev tailwindcss@3.4.1 postcss@latest autoprefixer@latest tailwindcss-animate@1.0.7
+          echo "Cleaning npm cache"
+          npm cache clean --force
           
-          # Verify installations
-          echo "Installed packages:"
-          npm list tailwindcss
-          npm list postcss
-          npm list autoprefixer
-          npm list tailwindcss-animate
+          echo "Installing all dependencies"
+          npm install --legacy-peer-deps
+          
+          echo "Verifying critical packages are installed"
+          if [ ! -d "node_modules/tailwindcss" ]; then
+            echo "Tailwind CSS not found, installing directly"
+            npm install --save-dev tailwindcss@3.4.1 postcss@8.4.35 autoprefixer@10.4.18 tailwindcss-animate@1.0.7
+          fi
+          
+          echo "Verifying tailwindcss installation:"
+          ls -la node_modules/tailwindcss/
+          
+          echo "Verifying package versions:"
+          npm list tailwindcss postcss autoprefixer tailwindcss-animate
       
-      - name: Create optimized configs
+      - name: Create GitHub Pages-specific configurations
         run: |
           # Create optimized Next.js config for GitHub Pages
           cat > next.config.js << 'EOL'
           /** @type {import('next').NextConfig} */
           const nextConfig = {
-            // Enable static exports for GitHub Pages
             output: 'export',
-            
-            // Set basePath to match GitHub Pages repository name
-            basePath: process.env.NODE_ENV === 'production' ? '/cit-clinical' : '',
-            
-            // Set assetPrefix for correct asset paths in GitHub Pages
-            assetPrefix: process.env.NODE_ENV === 'production' ? '/cit-clinical/' : '',
-            
-            // Disable server-based image optimization for static export
-            images: {
-              unoptimized: true,
-            },
-            
-            // Skip type checking and linting during build
-            typescript: {
-              ignoreBuildErrors: true,
-            },
-            eslint: {
-              ignoreDuringBuilds: true,
-            },
-            
-            // Add trailing slash for consistent paths
+            basePath: '/cit-clinical',
+            assetPrefix: '/cit-clinical/',
+            images: { unoptimized: true },
+            typescript: { ignoreBuildErrors: true },
+            eslint: { ignoreDuringBuilds: true },
             trailingSlash: true,
-            
-            // Performance optimizations
-            swcMinify: true,
-            poweredByHeader: false,
-            reactStrictMode: false,
+            // Only essential experimental features
+            experimental: { 
+              webpackBuildWorker: true 
+            }
           }
           
           module.exports = nextConfig
           EOL
           echo "Created optimized next.config.js for GitHub Pages"
           
-          # Create optimized Tailwind config for v3
+          # Create simple PostCSS config
+          cat > postcss.config.js << 'EOL'
+          module.exports = {
+            plugins: {
+              'tailwindcss': {},
+              'autoprefixer': {},
+            }
+          }
+          EOL
+          echo "Created simplified postcss.config.js"
+          
+          # Create simplified tailwind config
           cat > tailwind.config.js << 'EOL'
           /** @type {import('tailwindcss').Config} */
           module.exports = {
             content: [
               './app/**/*.{js,ts,jsx,tsx,mdx}',
-              './pages/**/*.{js,ts,jsx,tsx,mdx}',
               './components/**/*.{js,ts,jsx,tsx,mdx}',
               './page.tsx',
             ],
@@ -150,23 +147,6 @@ jobs:
                   border: "hsl(var(--border))",
                   input: "hsl(var(--input))",
                   ring: "hsl(var(--ring))",
-                  chart: {
-                    1: "hsl(var(--chart-1))",
-                    2: "hsl(var(--chart-2))",
-                    3: "hsl(var(--chart-3))",
-                    4: "hsl(var(--chart-4))",
-                    5: "hsl(var(--chart-5))",
-                  },
-                  sidebar: {
-                    background: "hsl(var(--sidebar-background))",
-                    foreground: "hsl(var(--sidebar-foreground))",
-                    primary: "hsl(var(--sidebar-primary))",
-                    "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-                    accent: "hsl(var(--sidebar-accent))",
-                    "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-                    border: "hsl(var(--sidebar-border))",
-                    ring: "hsl(var(--sidebar-ring))",
-                  },
                 },
                 borderRadius: {
                   lg: "var(--radius)",
@@ -190,138 +170,9 @@ jobs:
               }
             },
             plugins: [require("tailwindcss-animate")],
-            // Add safelist for utility classes
-            safelist: [
-              'bg-background', 
-              'text-foreground',
-              'bg-primary', 
-              'text-primary', 
-              'text-primary-foreground',
-              'bg-secondary', 
-              'text-secondary', 
-              'text-secondary-foreground',
-              'bg-accent', 
-              'text-accent', 
-              'text-accent-foreground',
-              'bg-muted', 
-              'text-muted', 
-              'text-muted-foreground',
-              'border-border', 
-              'ring-ring'
-            ],
           }
           EOL
-          echo "Created Tailwind v3 compatible config with safelist"
-          
-          # Create standard PostCSS config for v3
-          cat > postcss.config.js << 'EOL'
-          module.exports = {
-            plugins: {
-              tailwindcss: {},
-              autoprefixer: {},
-            },
-          }
-          EOL
-          echo "Created standard PostCSS config for Tailwind v3"
-          
-          # Update globals.css to be compatible with Tailwind CSS v3
-          cat > app/globals.css << 'EOL'
-          @tailwind base;
-          @tailwind components;
-          @tailwind utilities;
-
-          body {
-            font-family: Arial, Helvetica, sans-serif;
-          }
-
-          @layer utilities {
-            .text-balance {
-              text-wrap: balance;
-            }
-          }
-
-          @layer base {
-            :root {
-              --background: 0 0% 100%;
-              --foreground: 0 0% 3.9%;
-              --card: 0 0% 100%;
-              --card-foreground: 0 0% 3.9%;
-              --popover: 0 0% 100%;
-              --popover-foreground: 0 0% 3.9%;
-              --primary: 0 0% 9%;
-              --primary-foreground: 0 0% 98%;
-              --secondary: 0 0% 96.1%;
-              --secondary-foreground: 0 0% 9%;
-              --muted: 0 0% 96.1%;
-              --muted-foreground: 0 0% 45.1%;
-              --accent: 0 0% 96.1%;
-              --accent-foreground: 0 0% 9%;
-              --destructive: 0 84.2% 60.2%;
-              --destructive-foreground: 0 0% 98%;
-              --border: 0 0% 89.8%;
-              --input: 0 0% 89.8%;
-              --ring: 0 0% 3.9%;
-              --chart-1: 12 76% 61%;
-              --chart-2: 173 58% 39%;
-              --chart-3: 197 37% 24%;
-              --chart-4: 43 74% 66%;
-              --chart-5: 27 87% 67%;
-              --radius: 0.5rem;
-              --sidebar-background: 0 0% 98%;
-              --sidebar-foreground: 240 5.3% 26.1%;
-              --sidebar-primary: 240 5.9% 10%;
-              --sidebar-primary-foreground: 0 0% 98%;
-              --sidebar-accent: 240 4.8% 95.9%;
-              --sidebar-accent-foreground: 240 5.9% 10%;
-              --sidebar-border: 220 13% 91%;
-              --sidebar-ring: 217.2 91.2% 59.8%;
-            }
-            .dark {
-              --background: 0 0% 3.9%;
-              --foreground: 0 0% 98%;
-              --card: 0 0% 3.9%;
-              --card-foreground: 0 0% 98%;
-              --popover: 0 0% 3.9%;
-              --popover-foreground: 0 0% 98%;
-              --primary: 0 0% 98%;
-              --primary-foreground: 0 0% 9%;
-              --secondary: 0 0% 14.9%;
-              --secondary-foreground: 0 0% 98%;
-              --muted: 0 0% 14.9%;
-              --muted-foreground: 0 0% 63.9%;
-              --accent: 0 0% 14.9%;
-              --accent-foreground: 0 0% 98%;
-              --destructive: 0 62.8% 30.6%;
-              --destructive-foreground: 0 0% 98%;
-              --border: 0 0% 14.9%;
-              --input: 0 0% 14.9%;
-              --ring: 0 0% 83.1%;
-              --chart-1: 220 70% 50%;
-              --chart-2: 160 60% 45%;
-              --chart-3: 30 80% 55%;
-              --chart-4: 280 65% 60%;
-              --chart-5: 340 75% 55%;
-              --sidebar-background: 240 5.9% 10%;
-              --sidebar-foreground: 240 4.8% 95.9%;
-              --sidebar-primary: 224.3 76.3% 48%;
-              --sidebar-primary-foreground: 0 0% 100%;
-              --sidebar-accent: 240 3.7% 15.9%;
-              --sidebar-accent-foreground: 240 4.8% 95.9%;
-              --sidebar-border: 240 3.7% 15.9%;
-              --sidebar-ring: 217.2 91.2% 59.8%;
-            }
-          }
-
-          @layer base {
-            * {
-              @apply border-border;
-            }
-            body {
-              @apply bg-background text-foreground;
-            }
-          }
-          EOL
-          echo "Created standard globals.css for Tailwind v3"
+          echo "Created simplified tailwind.config.js"
       
       - name: Set environment variables
         run: |
@@ -331,118 +182,29 @@ jobs:
       
       - name: Print debug information
         run: |
-          echo "Current directory structure:"
+          echo "Final directory structure:"
           ls -la
-          echo "Node modules directory:"
-          ls -la node_modules | grep tailwind
-          echo "Tailwind and PostCSS versions:"
-          npm list tailwindcss
-          npm list postcss
-          echo "Content of globals.css:"
-          cat app/globals.css
+          echo "Node modules directory contents:"
+          ls -la node_modules | grep tail
+          echo "Tailwind directory contents:"
+          ls -la node_modules/tailwindcss/ || echo "Tailwind directory not found"
+          echo "PostCSS directory contents:"
+          ls -la node_modules/postcss/ || echo "PostCSS directory not found"
+          echo "Package versions from package.json:"
+          npm list tailwindcss postcss autoprefixer tailwindcss-animate
           echo "Content of tailwind.config.js:"
           cat tailwind.config.js
           echo "Content of postcss.config.js:"
           cat postcss.config.js
+          echo "Content of next.config.js:"
+          cat next.config.js
       
       - name: Build with Next.js
         run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
-          echo "Starting Next.js build..."
-          npm run build
+          echo "Starting Next.js build with NPX to ensure proper path resolution..."
+          npx next build
           echo "Build completed successfully!"
-      
-      - name: Optimize for GitHub Pages
-        run: |
-          # Create script to fix path issues in HTML and CSS files
-          cat > out/_fix-paths.js << 'EOL'
-          const fs = require('fs');
-          const path = require('path');
-          
-          function processHtmlFile(filePath) {
-            const content = fs.readFileSync(filePath, 'utf8');
-            const fixedContent = content
-              .replace(/href="\/_next\//g, 'href="/cit-clinical/_next/')
-              .replace(/src="\/_next\//g, 'src="/cit-clinical/_next/')
-              .replace(/"\/cit-clinical\/cit-clinical\//g, '"/cit-clinical/');
-            
-            fs.writeFileSync(filePath, fixedContent);
-            console.log(`Fixed paths in ${filePath}`);
-          }
-          
-          function processCSSFile(filePath) {
-            const content = fs.readFileSync(filePath, 'utf8');
-            const fixedContent = content
-              .replace(/url\(\/_next\//g, 'url(/cit-clinical/_next/')
-              .replace(/url\(\/cit-clinical\/cit-clinical\//g, 'url(/cit-clinical/');
-            
-            fs.writeFileSync(filePath, fixedContent);
-            console.log(`Fixed paths in CSS ${filePath}`);
-          }
-          
-          function walkDir(dir) {
-            const files = fs.readdirSync(dir);
-            
-            for (const file of files) {
-              const filePath = path.join(dir, file);
-              const stat = fs.statSync(filePath);
-              
-              if (stat.isDirectory()) {
-                walkDir(filePath);
-              } else if (file.endsWith('.html')) {
-                processHtmlFile(filePath);
-              } else if (file.endsWith('.css')) {
-                processCSSFile(filePath);
-              }
-            }
-          }
-          
-          walkDir('.');
-          console.log('Path fixing complete!');
-          EOL
-          
-          # Ensure .nojekyll exists in the output directory
-          touch out/.nojekyll
-          
-          # Run the path fixing script
-          cd out && node _fix-paths.js
-      
-      - name: Add debug tools to output
-        run: |
-          # Create a small debug panel script
-          cat > out/_debug-panel.js << 'EOL'
-          document.addEventListener('DOMContentLoaded', function() {
-            const debugPanel = document.createElement('div');
-            debugPanel.style.position = 'fixed';
-            debugPanel.style.bottom = '10px';
-            debugPanel.style.right = '10px';
-            debugPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            debugPanel.style.color = 'white';
-            debugPanel.style.padding = '10px';
-            debugPanel.style.borderRadius = '5px';
-            debugPanel.style.zIndex = '9999';
-            debugPanel.style.fontSize = '12px';
-            
-            debugPanel.innerHTML = `
-              <div style="margin-bottom: 8px;">CIT Clinical - GitHub Pages</div>
-              <div style="font-size: 10px; opacity: 0.8;">Build: ${new Date().toISOString()}</div>
-              <button id="toggle-styles" style="margin-top: 5px; background: #333; border: 1px solid #666; color: white; padding: 4px 8px; cursor: pointer; font-size: 10px;">Toggle CSS</button>
-            `;
-            
-            document.body.appendChild(debugPanel);
-            
-            document.getElementById('toggle-styles').addEventListener('click', function() {
-              document.querySelectorAll('link[rel="stylesheet"]').forEach(sheet => {
-                sheet.disabled = !sheet.disabled;
-              });
-            });
-          });
-          EOL
-          
-          # Add script reference to all HTML files
-          for htmlFile in $(find out -name "*.html"); do
-            sed -i 's/<\/body>/<script src="\/cit-clinical\/_debug-panel.js"><\/script><\/body>/g' "$htmlFile"
-          done
       
       - name: Verify output
         run: |
@@ -453,10 +215,8 @@ jobs:
           echo "CSS files generated:"
           find out -type f -name "*.css" | sort
           
-          echo "Checking for .nojekyll file:"
-          [ -f out/.nojekyll ] && echo "✅ .nojekyll file exists" || echo "❌ .nojekyll file missing"
-          
-          echo "Checking for critical HTML files:"
+          echo "Checking for critical files:"
+          [ -f out/.nojekyll ] && echo "✅ .nojekyll file exists" || (echo "❌ .nojekyll file missing" && touch out/.nojekyll)
           [ -f out/index.html ] && echo "✅ index.html exists" || echo "❌ index.html missing"
       
       - name: Upload artifact
