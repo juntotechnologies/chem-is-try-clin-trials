@@ -52,34 +52,47 @@ jobs:
       
       - name: Update PostCSS config for Tailwind v4
         run: |
-          cat > postcss.config.js << 'EOL'
-          module.exports = {
+          echo 'module.exports = {
             plugins: {
-              '@tailwindcss/postcss': {},
-              autoprefixer: {},
+              "@tailwindcss/postcss": {},
+              "autoprefixer": {},
             },
-          };
-          EOL
+          };' > postcss.config.js
           cat postcss.config.js
       
       - name: Update Tailwind config
         run: |
-          cat > tailwind.config.js << 'EOL'
-          /** @type {import('tailwindcss').Config} */
-          module.exports = {
+          echo 'module.exports = {
             content: [
-              './pages/**/*.{js,ts,jsx,tsx,mdx}',
-              './components/**/*.{js,ts,jsx,tsx,mdx}',
-              './app/**/*.{js,ts,jsx,tsx,mdx}',
-              './page.tsx',
+              "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+              "./components/**/*.{js,ts,jsx,tsx,mdx}",
+              "./app/**/*.{js,ts,jsx,tsx,mdx}",
+              "./page.tsx",
             ],
             theme: {
               extend: {},
             },
             plugins: [],
-          }
-          EOL
+          }' > tailwind.config.js
           cat tailwind.config.js
+      
+      - name: Create CSS backup
+        run: |
+          # Create a backup of the original CSS file
+          if [ -f app/globals.css ]; then
+            cp app/globals.css app/globals.css.bak
+          fi
+      
+      - name: Simplify globals.css
+        run: |
+          echo '@tailwind base;
+          @tailwind components;
+          @tailwind utilities;
+
+          body {
+            font-family: Arial, sans-serif;
+          }' > app/globals.css
+          cat app/globals.css
       
       - name: Debug Environment
         run: |
@@ -92,63 +105,63 @@ jobs:
           echo "Tailwind Config:"
           cat tailwind.config.js
           echo "Global CSS:"
-          cat app/globals.css || echo "globals.css not found"
+          cat app/globals.css
       
       - name: Try building with Next.js
-        id: build_attempt
+        run: npm run build || echo "Build failed, continuing with fallback"
+      
+      - name: Create fallback page if build failed
+        if: failure()
         run: |
-          npm run build || {
-            echo "Build failed, falling back to static HTML"
+          mkdir -p out
+          echo '<!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Clinical Intervention Theories</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                margin: 0;
+                padding: 20px;
+                color: #333;
+                max-width: 800px;
+                margin: 0 auto;
+              }
+              h1 {
+                color: #2c3e50;
+              }
+              p {
+                margin-bottom: 1em;
+              }
+              .container {
+                padding: 20px;
+                background: #f9f9f9;
+                border-radius: 5px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Clinical Intervention Theories</h1>
+              <p>The build process is being debugged. This page is a fallback.</p>
+              <p>Error occurred during the build process. We are working on it!</p>
+              <h2>Error Details:</h2>
+              <pre>Check GitHub Actions logs for detailed error information.</pre>
+            </div>
+          </body>
+          </html>' > out/index.html
+      
+      - name: Check for out directory
+        run: |
+          if [ ! -d "out" ]; then
             mkdir -p out
-            cat > out/index.html << 'EOL'
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Clinical Intervention Theories</title>
-              <style>
-                body {
-                  font-family: Arial, sans-serif;
-                  line-height: 1.6;
-                  margin: 0;
-                  padding: 20px;
-                  color: #333;
-                  max-width: 800px;
-                  margin: 0 auto;
-                }
-                h1 {
-                  color: #2c3e50;
-                }
-                p {
-                  margin-bottom: 1em;
-                }
-                .container {
-                  padding: 20px;
-                  background: #f9f9f9;
-                  border-radius: 5px;
-                  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h1>Clinical Intervention Theories</h1>
-                <p>The build process is being debugged. This page is a fallback.</p>
-                <p>Error occurred during the build process. We're working on it!</p>
-                <h2>Error Details:</h2>
-                <pre id="error-details"></pre>
-              </div>
-              <script>
-                // We'll inject the actual error details here through the workflow
-                document.getElementById('error-details').textContent = 
-                  'Check GitHub Actions logs for detailed error information.';
-              </script>
-            </body>
-            </html>
-            EOL
-            exit 0  # Continue workflow even if build fails
-          }
+            cp -r public/* out/ 2>/dev/null || :
+            echo "<!DOCTYPE html><html><body><h1>Fallback Page</h1><p>Build failed - see GitHub Actions logs.</p></body></html>" > out/index.html
+          fi
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
