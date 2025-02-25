@@ -28,6 +28,8 @@ jobs:
   # Build job
   build:
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,64 +37,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: 'npm'
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           static_site_generator: next
       - name: Install dependencies
-        run: npm install
-      - name: Fix TypeScript issues
-        run: |
-          # Create simplified next.config.js that overrides the mjs version
-          cat > next.config.js << 'EOF'
-          /** @type {import('next').NextConfig} */
-          const nextConfig = {
-            output: 'export',
-            basePath: process.env.NODE_ENV === 'production' ? '/cit-clinical' : '',
-            assetPrefix: process.env.NODE_ENV === 'production' ? '/cit-clinical/' : '',
-            images: {
-              unoptimized: true,
-            },
-            typescript: {
-              ignoreBuildErrors: true,
-            },
-            eslint: {
-              ignoreDuringBuilds: true,
-            },
-            trailingSlash: true,
-          }
-          
-          module.exports = nextConfig
-          EOF
-          
-          # Create a temporary non-strict tsconfig
-          cat > tsconfig.simple.json << 'EOF'
-          {
-            "compilerOptions": {
-              "target": "es5",
-              "lib": ["dom", "dom.iterable", "esnext"],
-              "allowJs": true,
-              "skipLibCheck": true,
-              "strict": false,
-              "forceConsistentCasingInFileNames": true,
-              "noEmit": true,
-              "esModuleInterop": true,
-              "module": "esnext",
-              "moduleResolution": "node",
-              "resolveJsonModule": true,
-              "isolatedModules": true,
-              "jsx": "preserve",
-              "incremental": true
-            },
-            "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-            "exclude": ["node_modules"]
-          }
-          EOF
-          
-          mv tsconfig.simple.json tsconfig.json
+        run: npm install --legacy-peer-deps
       - name: Build with Next.js
         run: |
-          NODE_OPTIONS=--no-warnings NEXT_TELEMETRY_DISABLED=1 npx --no-install next build
+          NODE_OPTIONS=--no-warnings NEXT_TELEMETRY_DISABLED=1 npm run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
