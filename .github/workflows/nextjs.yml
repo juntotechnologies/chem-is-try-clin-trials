@@ -37,64 +37,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: 'npm'
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           static_site_generator: next
-      - name: Clean install dependencies
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Debug package installs
         run: |
-          npm cache clean --force
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
-      - name: Install TailwindCSS and PostCSS
-        run: |
-          npm install --save-dev tailwindcss@3.4.17 postcss@8 autoprefixer
-          echo "Installed packages:"
-          npm list --depth=0 tailwindcss postcss autoprefixer
-      - name: Verify CSS configuration
-        run: |
-          ls -la .
-          ls -la app || echo "No app directory"
-          cat tailwind.config.js || echo "No tailwind.config.js file"
-          cat postcss.config.js || echo "No postcss.config.js file"
-          echo "Contents of app/globals.css:"
-          cat app/globals.css || echo "No globals.css file"
-      - name: Create PostCSS config if missing
-        run: |
-          if [ ! -f postcss.config.js ]; then
-            echo "Creating postcss.config.js"
-            cat > postcss.config.js << 'EOF'
-            module.exports = {
-              plugins: {
-                tailwindcss: {},
-                autoprefixer: {},
-              },
-            }
-            EOF
-          fi
-      - name: Create Tailwind config if missing
-        run: |
-          if [ ! -f tailwind.config.js ]; then
-            echo "Creating tailwind.config.js"
-            cat > tailwind.config.js << 'EOF'
-            /** @type {import('tailwindcss').Config} */
-            module.exports = {
-              content: [
-                "./app/**/*.{js,ts,jsx,tsx,mdx}",
-                "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-                "./components/**/*.{js,ts,jsx,tsx,mdx}",
-              ],
-              theme: {
-                extend: {},
-              },
-              plugins: [],
-            }
-            EOF
-          fi
+          echo "======== Node version ========"
+          node -v
+          echo "======== NPM version ========"
+          npm -v
+          echo "======== TailwindCSS ========"
+          ls -la node_modules/tailwindcss || echo "TailwindCSS not found"
+          echo "======== Key files ========"
+          ls -la tailwind.config.js postcss.config.js
+          echo "======== Package.json ========"
+          cat package.json
       - name: Build with Next.js
-        run: |
-          NODE_OPTIONS=--no-warnings NEXT_TELEMETRY_DISABLED=1 npm run build
+        run: npm run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
